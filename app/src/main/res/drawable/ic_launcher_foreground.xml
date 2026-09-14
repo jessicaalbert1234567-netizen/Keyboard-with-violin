@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Safe zone 66dp: from x=21..87, y=21..87 -->
+    <!-- Keyboard base plate -->
+    <path
+        android:pathData="M26,35 h56 a8,8 0 0 1 8,8 v30 a8,8 0 0 1 -8,8 h-56 a8,8 0 0 1 -8,-8 v-30 a8,8 0 0 1 8,-8 z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#38BDF8">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="26"
+                android:startY="35"
+                android:endX="90"
+                android:endY="81"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#3338BDF8" />
+                <item android:offset="1.0" android:color="#1A818CF8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top Key Row -->
+    <path
+        android:pathData="M25,41 h10 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#E0E7FF" />
+    <path
+        android:pathData="M40,41 h10 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#E0E7FF" />
+    <path
+        android:pathData="M55,41 h10 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#38BDF8" />
+    <path
+        android:pathData="M70,41 h13 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-13 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#818CF8" />
+
+    <!-- Middle Key Row -->
+    <path
+        android:pathData="M28,55 h11 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-11 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#E0E7FF" />
+    <path
+        android:pathData="M42,55 h11 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-11 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#F43F5E" />
+    <path
+        android:pathData="M56,55 h11 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-11 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#E0E7FF" />
+    <path
+        android:pathData="M70,55 h10 a2,2 0 0 1 2,2 v8 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-8 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#E0E7FF" />
+
+    <!-- Bottom Space Bar row -->
+    <path
+        android:pathData="M34,69 h40 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 h-40 a2,2 0 0 1 -2,-2 v-4 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#38BDF8" />
+
+    <!-- FX Sparks & Flame bursts emitting from key -->
+    <!-- Particle Spark 1 -->
+    <path
+        android:pathData="M48,52 L50,47 L53,52 L58,54 L53,56 L50,61 L48,56 L43,54 Z"
+        android:fillColor="#FBBF24" />
+    <!-- Particle Spark 2 -->
+    <path
+        android:pathData="M65,34 L66,31 L68,34 L71,35 L68,36 L66,39 L65,36 L62,35 Z"
+        android:fillColor="#F43F5E" />
+    <!-- Particle Spark 3 -->
+    <path
+        android:pathData="M32,32 L33,29 L35,32 L38,33 L35,34 L33,37 L32,34 L29,33 Z"
+        android:fillColor="#38BDF8" />
+    <!-- Energy trail -->
+    <path
+        android:pathData="M47,49 C46,42 52,38 50,30"
+        android:strokeWidth="1.8"
+        android:strokeColor="#F59E0B"
+        android:strokeLineCap="round" />
+</vector>

@@ -1,0 +1,7 @@
+{
+  "name": "FX Keyboard",
+  "description": "A feature-rich customizable Android system keyboard with dynamic key visual effects, sound engines, offline phonetic transliteration, themes, and clipboard manager.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
