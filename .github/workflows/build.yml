@@ -5,10 +5,13 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout repository
@@ -32,3 +35,21 @@ jobs:
       with:
         name: fx-keyboard-debug-apk
         path: app/build/outputs/apk/debug/*.apk
+
+    - name: Create or Update GitHub Release with APK
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "FX Keyboard with Violin & Piano (Latest APK)"
+        body: |
+          🎵 **FX Sound Keyboard with Piano, Violin & Gboard Key Magnifier**
+          - Separate individual melodic notes for all English characters A-Z
+          - Violin Ensemble and Grand Piano sound packs
+          - Continuous note sustain until the next key is pressed
+          - Google Keyboard-style elevated key preview popup
+        draft: false
+        prerelease: false
+        files: app/build/outputs/apk/debug/app-debug.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
