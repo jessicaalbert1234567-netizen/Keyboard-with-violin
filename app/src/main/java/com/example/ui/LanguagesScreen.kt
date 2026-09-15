@@ -2,6 +2,8 @@ package com.example.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,12 +105,18 @@ fun LanguagesScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val currentPack = allPacks.find { it.id == settings.currentLanguageId }
+                val displayLang = currentPack?.let { "${it.nativeName} (${it.name})" }
+                    ?: if (settings.currentLanguageId == "bn") "বাংলা (Bengali)" else "English"
                 Text(
-                    text = "Current Typing Language: ${if (settings.currentLanguageId == "bn") "বাংলা (Bengali)" else "English"}",
+                    text = "Current Typing Language: $displayLang",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Button(
                         onClick = {
                             onUpdateSettings(
@@ -151,7 +159,33 @@ fun LanguagesScreen(
                         shape = RoundedCornerShape(8.dp),
                         colors = if (settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.PHONETIC) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors()
                     ) {
-                        Text("Phonetic")
+                        Text("বাংলা Phonetic")
+                    }
+
+                    if (settings.currentLanguageId != "en" && settings.currentLanguageId != "bn" && currentPack != null) {
+                        Button(
+                            onClick = {
+                                onUpdateSettings(
+                                    settings.copy(currentInputMode = KeyboardInputMode.NATIVE)
+                                )
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = if (settings.currentInputMode == KeyboardInputMode.NATIVE) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors()
+                        ) {
+                            Text("${currentPack.nativeName} Native")
+                        }
+
+                        Button(
+                            onClick = {
+                                onUpdateSettings(
+                                    settings.copy(currentInputMode = KeyboardInputMode.PHONETIC)
+                                )
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = if (settings.currentInputMode == KeyboardInputMode.PHONETIC) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors()
+                        ) {
+                            Text("${currentPack.nativeName} Phonetic")
+                        }
                     }
                 }
             }
@@ -190,7 +224,11 @@ fun LanguagesScreen(
                     pack = pack,
                     isCurrent = settings.currentLanguageId == pack.id,
                     onSelect = {
-                        onUpdateSettings(settings.copy(currentLanguageId = pack.id))
+                        val mode = when (pack.id) {
+                            "en" -> KeyboardInputMode.ENGLISH
+                            else -> KeyboardInputMode.NATIVE
+                        }
+                        onUpdateSettings(settings.copy(currentLanguageId = pack.id, currentInputMode = mode))
                     },
                     onDownload = { packManager.downloadPack(pack.id) },
                     onDelete = { packManager.deletePack(pack.id) }

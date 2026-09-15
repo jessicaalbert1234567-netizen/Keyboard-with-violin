@@ -18,6 +18,9 @@ interface LanguagePackDao {
     @Query("SELECT * FROM language_packs WHERE downloadStatus IN ('INSTALLED', 'DOWNLOADED')")
     fun getInstalledPacks(): Flow<List<LanguagePackEntity>>
 
+    @Query("SELECT * FROM language_packs WHERE downloadStatus IN ('INSTALLED', 'DOWNLOADED')")
+    suspend fun getInstalledPacksList(): List<LanguagePackEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(pack: LanguagePackEntity)
 

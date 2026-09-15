@@ -43,6 +43,8 @@ import com.example.keyboard.KeyDefinition
 import com.example.keyboard.KeyType
 import com.example.keyboard.KeyboardComposable
 import com.example.keyboard.LayoutViewMode
+import com.example.language.LanguagePack
+import com.example.language.LanguagePackManager
 import com.example.language.TransliterationEngine
 import com.example.suggestions.OfflineDictionarySuggestionEngine
 import com.example.theme.ThemeEngine
@@ -70,6 +72,7 @@ class FXInputMethodService : InputMethodService(),
     private lateinit var soundEngine: SoundEngine
     private lateinit var clipboardManager: FXClipboardManager
     private lateinit var suggestionEngine: OfflineDictionarySuggestionEngine
+    private lateinit var packManager: LanguagePackManager
     private val effectEngine = EffectEngine()
     private val transliterationEngine = TransliterationEngine.instance
 
@@ -82,6 +85,7 @@ class FXInputMethodService : InputMethodService(),
     private var isCapsLock by mutableStateOf(false)
     private var suggestions by mutableStateOf<List<String>>(emptyList())
     private var isPasswordField by mutableStateOf(false)
+    private var installedLanguages by mutableStateOf<List<LanguagePack>>(emptyList())
 
     // Current word composing buffer
     private val composingBuffer = StringBuilder()
@@ -96,6 +100,7 @@ class FXInputMethodService : InputMethodService(),
         soundEngine = SoundEngine.getInstance(this)
         clipboardManager = FXClipboardManager.getInstance(this)
         suggestionEngine = OfflineDictionarySuggestionEngine(this)
+        packManager = LanguagePackManager.getInstance(this)
 
         initVibrator()
 
@@ -104,6 +109,13 @@ class FXInputMethodService : InputMethodService(),
             settingsRepo.settingsFlow.collect { settings ->
                 effectEngine.settings = settings
                 soundEngine.settings = settings
+            }
+        }
+
+        // Live observation of installed languages
+        serviceScope.launch {
+            packManager.installedPacksFlow.collect { packs ->
+                installedLanguages = packs
             }
         }
     }
@@ -193,6 +205,7 @@ class FXInputMethodService : InputMethodService(),
                     isCapsLock = isCapsLock,
                     suggestions = if (isPasswordField) emptyList() else suggestions,
                     clipboardEntries = if (isPasswordField) emptyList() else clipboardEntries,
+                    installedLanguages = installedLanguages,
                     onKeyAction = { keyDef, center, size ->
                         handleKeyPress(keyDef, center, size, settings)
                     },
@@ -239,6 +252,14 @@ class FXInputMethodService : InputMethodService(),
             showWindow(true)
         } catch (_: Exception) {}
 
+        // Ensure installed language packs are up to date
+        serviceScope.launch {
+            val packs = packManager.getInstalledPacks()
+            if (packs.isNotEmpty()) {
+                installedLanguages = packs
+            }
+        }
+
         // Check if input field is password
         val inputType = info?.inputType ?: 0
         val variation = inputType and InputType.TYPE_MASK_VARIATION
@@ -279,10 +300,11 @@ class FXInputMethodService : InputMethodService(),
         when (keyDef.type) {
             KeyType.CHARACTER -> {
                 val charToOutput = keyDef.output
-                if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
-                    // Phonetic buffer building
+                val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
+                if (isPhonetic) {
+                    // Single source of truth: phonetic composing buffer
                     composingBuffer.append(charToOutput)
-                    val transliterated = transliterationEngine.transliterate("bn", composingBuffer.toString())
+                    val transliterated = transliterationEngine.transliterate(settings.currentLanguageId, composingBuffer.toString())
                     ic.setComposingText(transliterated, 1)
                 } else {
                     ic.commitText(charToOutput, 1)
@@ -308,17 +330,19 @@ class FXInputMethodService : InputMethodService(),
 
             KeyType.BACKSPACE -> {
                 val selected = ic.getSelectedText(0)
+                val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
                 if (!selected.isNullOrEmpty()) {
                     ic.commitText("", 1)
                     if (composingBuffer.isNotEmpty()) composingBuffer.clear()
-                } else if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+                } else if (isPhonetic) {
                     if (composingBuffer.isNotEmpty()) {
                         composingBuffer.deleteCharAt(composingBuffer.length - 1)
                         if (composingBuffer.isEmpty()) {
+                            // Completely clear active composing text in the editor
+                            ic.setComposingText("", 1)
                             ic.finishComposingText()
-                            ic.commitText("", 1)
                         } else {
-                            val transliterated = transliterationEngine.transliterate("bn", composingBuffer.toString())
+                            val transliterated = transliterationEngine.transliterate(settings.currentLanguageId, composingBuffer.toString())
                             ic.setComposingText(transliterated, 1)
                         }
                     } else {
@@ -386,19 +410,35 @@ class FXInputMethodService : InputMethodService(),
             }
 
             KeyType.LANGUAGE_SWITCH -> {
-                // Cycle language modes: English -> Bengali Native -> Bengali Phonetic -> English
+                // Dynamically cycle through all installed languages and their supported modes
                 serviceScope.launch {
-                    val currentLang = settings.currentLanguageId
-                    val currentMode = settings.currentInputMode
-                    if (currentLang == "en") {
-                        settingsRepo.setCurrentLanguage("bn")
-                        settingsRepo.setCurrentInputMode(KeyboardInputMode.NATIVE)
-                    } else if (currentLang == "bn" && currentMode == KeyboardInputMode.NATIVE) {
-                        settingsRepo.setCurrentInputMode(KeyboardInputMode.PHONETIC)
-                    } else {
-                        settingsRepo.setCurrentLanguage("en")
-                        settingsRepo.setCurrentInputMode(KeyboardInputMode.ENGLISH)
+                    val packs = if (installedLanguages.isNotEmpty()) installedLanguages else packManager.getInstalledPacks()
+                    val availableModes = mutableListOf<Pair<String, KeyboardInputMode>>()
+                    for (pack in packs) {
+                        if (pack.id == "en") {
+                            availableModes.add(Pair("en", KeyboardInputMode.ENGLISH))
+                        } else {
+                            if (pack.hasNativeLayout) {
+                                availableModes.add(Pair(pack.id, KeyboardInputMode.NATIVE))
+                            }
+                            if (pack.hasPhoneticMode) {
+                                availableModes.add(Pair(pack.id, KeyboardInputMode.PHONETIC))
+                            }
+                        }
                     }
+                    if (availableModes.isEmpty()) {
+                        availableModes.add(Pair("en", KeyboardInputMode.ENGLISH))
+                        availableModes.add(Pair("bn", KeyboardInputMode.NATIVE))
+                        availableModes.add(Pair("bn", KeyboardInputMode.PHONETIC))
+                    }
+
+                    val currentPair = Pair(settings.currentLanguageId, settings.currentInputMode)
+                    val currentIndex = availableModes.indexOfFirst { it.first == currentPair.first && it.second == currentPair.second }
+                    val nextIndex = if (currentIndex != -1) (currentIndex + 1) % availableModes.size else 0
+                    val nextMode = availableModes[nextIndex]
+
+                    settingsRepo.setCurrentLanguage(nextMode.first)
+                    settingsRepo.setCurrentInputMode(nextMode.second)
                 }
             }
 
@@ -416,13 +456,15 @@ class FXInputMethodService : InputMethodService(),
         if (composingBuffer.isEmpty()) return
 
         val raw = composingBuffer.toString()
-        if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
-            ic.finishComposingText()
-            val textToCommit = transliterationEngine.transliterate("bn", raw)
+        val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
+        if (isPhonetic) {
+            val textToCommit = transliterationEngine.transliterate(settings.currentLanguageId, raw)
+            // commitText atomically replaces any active composing text in the editor.
+            // Do NOT call finishComposingText() beforehand as that leaves duplicate text!
             ic.commitText(textToCommit, 1)
             if (!isPasswordField && textToCommit.isNotBlank()) {
                 serviceScope.launch {
-                    suggestionEngine.learnWord(textToCommit, "bn")
+                    suggestionEngine.learnWord(textToCommit, settings.currentLanguageId)
                 }
             }
             previousWord = textToCommit
@@ -458,7 +500,9 @@ class FXInputMethodService : InputMethodService(),
 
     private fun commitSuggestion(suggestion: String, settings: KeyboardSettings) {
         val ic = currentInputConnection ?: return
-        if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+        val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
+        if (isPhonetic) {
+            // In phonetic mode, commitText replaces the current composing text directly
             ic.commitText("$suggestion ", 1)
         } else {
             if (composingBuffer.isNotEmpty()) {
@@ -483,8 +527,9 @@ class FXInputMethodService : InputMethodService(),
         }
         serviceScope.launch {
             val currentWord = composingBuffer.toString()
-            if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
-                val phoneticCandidates = transliterationEngine.getCandidates("bn", currentWord)
+            val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
+            if (isPhonetic) {
+                val phoneticCandidates = transliterationEngine.getCandidates(settings.currentLanguageId, currentWord)
                 suggestions = phoneticCandidates
             } else {
                 val list = suggestionEngine.getSuggestions(

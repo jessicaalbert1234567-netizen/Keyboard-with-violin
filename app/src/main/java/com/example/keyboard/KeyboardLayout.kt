@@ -10,12 +10,25 @@ enum class LayoutViewMode {
 
 object KeyboardLayoutProvider {
 
-    fun getSpaceLabel(languageId: String, inputMode: com.example.data.settings.KeyboardInputMode): String {
+    fun getSpaceLabel(
+        languageId: String,
+        inputMode: com.example.data.settings.KeyboardInputMode,
+        pack: com.example.language.LanguagePack? = null
+    ): String {
         return when {
             languageId == "bn" && inputMode == com.example.data.settings.KeyboardInputMode.NATIVE -> "বাংলা"
             languageId == "bn" && inputMode == com.example.data.settings.KeyboardInputMode.PHONETIC -> "বাংলা (Phonetic)"
+            pack != null && pack.id != "en" && inputMode == com.example.data.settings.KeyboardInputMode.PHONETIC -> "${pack.nativeName} (Phonetic)"
+            pack != null && pack.id != "en" -> pack.nativeName
+            languageId == "hi" && inputMode == com.example.data.settings.KeyboardInputMode.PHONETIC -> "हिन्दी (Phonetic)"
+            languageId == "hi" -> "हिन्दी"
+            languageId == "ar" -> "العربية"
             else -> "English"
         }
+    }
+
+    fun isLanguageSupported(languageId: String): Boolean {
+        return languageId.isNotBlank()
     }
 
     fun getEnglishAlphaRows(
@@ -121,6 +134,77 @@ object KeyboardLayoutProvider {
             KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
             KeyDefinition(label = "।", output = "।", weight = 1.0f), // Bengali Dari (period)
             KeyDefinition(label = "ং", output = "ং", weight = 1.0f),
+            KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
+        )
+        rows.add(r4)
+
+        return rows
+    }
+
+    fun getHindiNativeRows(isShifted: Boolean, spaceLabel: String = "हिन्दी"): List<List<KeyDefinition>> {
+        val rows = mutableListOf<List<KeyDefinition>>()
+
+        val r1Chars = if (!isShifted) {
+            listOf("क", "ख", "ग", "घ", "ङ", "च", "छ", "ज", "झ", "ञ")
+        } else {
+            listOf("अ", "आ", "इ", "ई", "उ", "ऊ", "ऋ", "ए", "ऐ", "ओ")
+        }
+        rows.add(r1Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r2Chars = if (!isShifted) {
+            listOf("ट", "ठ", "ड", "ढ", "ण", "त", "थ", "द", "ध", "न")
+        } else {
+            listOf("ा", "ि", "ी", "ु", "ू", "ृ", "े", "ै", "ो", "ौ")
+        }
+        rows.add(r2Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r3 = mutableListOf<KeyDefinition>()
+        r3.add(KeyDefinition(label = "स्वर", output = "", type = KeyType.SHIFT, weight = 1.3f, isToggleActive = isShifted))
+        val r3Chars = if (!isShifted) {
+            listOf("प", "फ", "ब", "भ", "म", "य", "र", "ल")
+        } else {
+            listOf("व", "श", "ष", "स", "ह", "ड़", "ढ़", "ः")
+        }
+        r3.addAll(r3Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+        r3.add(KeyDefinition(label = "⌫", output = "", type = KeyType.BACKSPACE, weight = 1.3f))
+        rows.add(r3)
+
+        val r4 = listOf(
+            KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
+            KeyDefinition(label = "्", output = "्", weight = 1.0f),
+            KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = "।", output = "।", weight = 1.0f),
+            KeyDefinition(label = "ं", output = "ं", weight = 1.0f),
+            KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
+        )
+        rows.add(r4)
+
+        return rows
+    }
+
+    fun getArabicNativeRows(isShifted: Boolean, spaceLabel: String = "العربية"): List<List<KeyDefinition>> {
+        val rows = mutableListOf<List<KeyDefinition>>()
+        val r1Chars = listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح")
+        rows.add(r1Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r2Chars = listOf("ج", "ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م")
+        rows.add(r2Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r3 = mutableListOf<KeyDefinition>()
+        r3.add(KeyDefinition(label = "⇧", output = "", type = KeyType.SHIFT, weight = 1.3f, isToggleActive = isShifted))
+        val r3Chars = listOf("ك", "ط", "ئ", "ء", "ؤ", "ر", "لا", "ى")
+        r3.addAll(r3Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+        r3.add(KeyDefinition(label = "⌫", output = "", type = KeyType.BACKSPACE, weight = 1.3f))
+        rows.add(r3)
+
+        val r4 = listOf(
+            KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
+            KeyDefinition(label = "؟", output = "؟", weight = 1.0f),
+            KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = "،", output = "،", weight = 1.0f),
+            KeyDefinition(label = ".", output = ".", weight = 1.0f),
             KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
         )
         rows.add(r4)

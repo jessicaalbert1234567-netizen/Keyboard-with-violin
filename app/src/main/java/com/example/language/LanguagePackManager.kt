@@ -29,6 +29,54 @@ class LanguagePackManager(private val context: Context) {
         entities.map { it.toLanguagePack() }
     }
 
+    val installedPacksFlow: Flow<List<LanguagePack>> = packDao.getInstalledPacks().map { entities ->
+        val list = entities.map { it.toLanguagePack() }.toMutableList()
+        // Guarantee built-ins "en" and "bn" are always present as installed
+        if (list.none { it.id == "en" }) {
+            list.add(0, defaultEnglishPack)
+        }
+        if (list.none { it.id == "bn" }) {
+            val insertIdx = if (list.isNotEmpty()) 1 else 0
+            list.add(insertIdx, defaultBengaliPack)
+        }
+        list
+    }
+
+    suspend fun getInstalledPacks(): List<LanguagePack> {
+        val entities = packDao.getInstalledPacksList()
+        val list = entities.map { it.toLanguagePack() }.toMutableList()
+        if (list.none { it.id == "en" }) {
+            list.add(0, defaultEnglishPack)
+        }
+        if (list.none { it.id == "bn" }) {
+            val insertIdx = if (list.isNotEmpty()) 1 else 0
+            list.add(insertIdx, defaultBengaliPack)
+        }
+        return list
+    }
+
+    private val defaultEnglishPack = LanguagePack(
+        id = "en",
+        name = "English",
+        nativeName = "English",
+        version = 1,
+        fileSizeFormatted = "Built-in",
+        status = PackDownloadStatus.INSTALLED,
+        hasNativeLayout = true,
+        hasPhoneticMode = false
+    )
+
+    private val defaultBengaliPack = LanguagePack(
+        id = "bn",
+        name = "Bengali",
+        nativeName = "বাংলা",
+        version = 1,
+        fileSizeFormatted = "Built-in",
+        status = PackDownloadStatus.INSTALLED,
+        hasNativeLayout = true,
+        hasPhoneticMode = true
+    )
+
     private suspend fun seedInitialLanguages() {
         try {
             val jsonString = context.assets.open("languages.json").bufferedReader().use { it.readText() }
@@ -68,6 +116,9 @@ class LanguagePackManager(private val context: Context) {
 
     fun downloadPack(packId: String) {
         coroutineScope.launch {
+            val pack = packDao.getPackById(packId)
+            if (pack == null) return@launch
+
             packDao.updateStatus(packId, PackDownloadStatus.DOWNLOADING.name)
             delay(1200L) // Simulate network streaming / chunk transfer
 
@@ -82,8 +133,9 @@ class LanguagePackManager(private val context: Context) {
             val digest = md.digest(dummyPackData)
             val calculatedSha = digest.joinToString("") { "%02x".format(it) }
 
-            val pack = packDao.getPackById(packId)
-            if (pack != null) {
+            // Validate language pack before finalizing installation
+            val isValid = validateLanguagePack(pack, packFile)
+            if (isValid) {
                 packDao.insertOrUpdate(
                     pack.copy(
                         downloadStatus = PackDownloadStatus.INSTALLED.name,
@@ -91,8 +143,24 @@ class LanguagePackManager(private val context: Context) {
                         sha256 = calculatedSha
                     )
                 )
+            } else {
+                // If corrupted or invalid, revert to AVAILABLE and delete partial file
+                try {
+                    packFile.delete()
+                } catch (_: Exception) {}
+                packDao.updateStatus(packId, PackDownloadStatus.AVAILABLE.name)
             }
         }
+    }
+
+    private fun validateLanguagePack(pack: LanguagePackEntity, file: File): Boolean {
+        // Validate required metadata
+        if (pack.id.isBlank()) return false
+        if (pack.name.isBlank()) return false
+        if (pack.nativeName.isBlank()) return false
+        // Validate file integrity
+        if (!file.exists() || file.length() == 0L) return false
+        return true
     }
 
     fun deletePack(packId: String) {

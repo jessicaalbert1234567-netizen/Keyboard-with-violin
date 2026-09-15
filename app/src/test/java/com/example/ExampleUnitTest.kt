@@ -37,6 +37,42 @@ class ExampleUnitTest {
         assertEquals("ধন্যবাদ", transliterator.transliterate("dhonnobad"))
         assertEquals("ভালো", transliterator.transliterate("bhalo"))
         assertEquals("কেমন", transliterator.transliterate("kemon"))
+        assertEquals("কোথায়", transliterator.transliterate("kothay"))
+        assertEquals("থাক", transliterator.transliterate("thak"))
+    }
+
+    @Test
+    fun testBengaliCandidatesDoNotDuplicate() {
+        val candidates = transliterator.getCandidates("kothay")
+        assertTrue("Candidates should contain কোথায়", candidates.contains("কোথায়"))
+        val distinct = candidates.distinct()
+        assertEquals("Candidates must not have duplicates", distinct.size, candidates.size)
+    }
+
+    @Test
+    fun testHindiTransliterator() {
+        val hindi = com.example.language.HindiTransliterator()
+        assertEquals("नमस्ते", hindi.transliterate("namaste"))
+        assertEquals("भारत", hindi.transliterate("bharat"))
+    }
+
+    @Test
+    fun testDownloadedLanguageSpaceLabel() {
+        val hindiPack = com.example.language.LanguagePack(
+            id = "hi",
+            name = "Hindi",
+            nativeName = "हिन्दी",
+            version = 1,
+            fileSizeFormatted = "1.2 MB",
+            status = com.example.language.PackDownloadStatus.INSTALLED,
+            hasNativeLayout = true,
+            hasPhoneticMode = true
+        )
+        val nativeSpace = KeyboardLayoutProvider.getSpaceLabel("hi", com.example.data.settings.KeyboardInputMode.NATIVE, hindiPack)
+        assertEquals("हिन्दी", nativeSpace)
+
+        val phoneticSpace = KeyboardLayoutProvider.getSpaceLabel("hi", com.example.data.settings.KeyboardInputMode.PHONETIC, hindiPack)
+        assertEquals("हिन्दी (Phonetic)", phoneticSpace)
     }
 
     @Test

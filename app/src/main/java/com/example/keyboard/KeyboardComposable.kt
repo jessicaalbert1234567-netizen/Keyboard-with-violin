@@ -96,16 +96,19 @@ fun KeyboardComposable(
     onClipboardClearAll: () -> Unit,
     onOpenSettings: () -> Unit,
     onModeChange: (LayoutViewMode) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    installedLanguages: List<com.example.language.LanguagePack> = emptyList()
 ) {
     var rootCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var activeKeyPreview by remember { mutableStateOf<KeyPopupPreviewData?>(null) }
 
-    // BUG 4: Briefly display language name when switching
+    // Briefly display language name when switching
     var languageChangeBanner by remember { mutableStateOf<String?>(null) }
     var hasInitializedLanguage by remember { mutableStateOf(false) }
 
-    LaunchedEffect(settings.currentLanguageId, settings.currentInputMode) {
+    val currentPack = installedLanguages.find { it.id == settings.currentLanguageId }
+
+    LaunchedEffect(settings.currentLanguageId, settings.currentInputMode, installedLanguages) {
         if (!hasInitializedLanguage) {
             hasInitializedLanguage = true
             return@LaunchedEffect
@@ -113,6 +116,9 @@ fun KeyboardComposable(
         val langName = when {
             settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.NATIVE -> "বাংলা (Native)"
             settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.PHONETIC -> "বাংলা (Phonetic)"
+            currentPack != null && currentPack.id != "en" && settings.currentInputMode == KeyboardInputMode.PHONETIC -> "${currentPack.nativeName} (Phonetic)"
+            currentPack != null && currentPack.id != "en" && settings.currentInputMode == KeyboardInputMode.NATIVE -> "${currentPack.nativeName} (Native)"
+            currentPack != null && currentPack.id != "en" -> currentPack.name
             else -> "English"
         }
         languageChangeBanner = langName
@@ -122,7 +128,7 @@ fun KeyboardComposable(
         }
     }
 
-    val spaceLabel = KeyboardLayoutProvider.getSpaceLabel(settings.currentLanguageId, settings.currentInputMode)
+    val spaceLabel = KeyboardLayoutProvider.getSpaceLabel(settings.currentLanguageId, settings.currentInputMode, currentPack)
 
     Box(
         modifier = modifier
@@ -140,7 +146,8 @@ fun KeyboardComposable(
                 onOpenClipboard = { onModeChange(LayoutViewMode.CLIPBOARD) },
                 onOpenSettings = onOpenSettings,
                 currentInputMode = settings.currentInputMode,
-                currentLanguageId = settings.currentLanguageId
+                currentLanguageId = settings.currentLanguageId,
+                currentPack = currentPack
             )
 
             // Keyboard Body
@@ -152,10 +159,19 @@ fun KeyboardComposable(
             ) {
                 when (layoutMode) {
                     LayoutViewMode.ALPHA -> {
-                        val rows = if (settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.NATIVE) {
-                            KeyboardLayoutProvider.getBengaliNativeRows(isShifted, spaceLabel)
-                        } else {
-                            KeyboardLayoutProvider.getEnglishAlphaRows(isShifted, isCapsLock, settings.showNumberRow, spaceLabel)
+                        val rows = when {
+                            settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
+                                KeyboardLayoutProvider.getBengaliNativeRows(isShifted, spaceLabel)
+                            }
+                            settings.currentLanguageId == "hi" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
+                                KeyboardLayoutProvider.getHindiNativeRows(isShifted, spaceLabel)
+                            }
+                            settings.currentLanguageId == "ar" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
+                                KeyboardLayoutProvider.getArabicNativeRows(isShifted, spaceLabel)
+                            }
+                            else -> {
+                                KeyboardLayoutProvider.getEnglishAlphaRows(isShifted, isCapsLock, settings.showNumberRow, spaceLabel)
+                            }
                         }
                         KeyboardGrid(
                             rows = rows,
@@ -257,7 +273,8 @@ private fun SuggestionBar(
     onOpenClipboard: () -> Unit,
     onOpenSettings: () -> Unit,
     currentInputMode: KeyboardInputMode,
-    currentLanguageId: String
+    currentLanguageId: String,
+    currentPack: com.example.language.LanguagePack? = null
 ) {
     Surface(
         modifier = Modifier
@@ -276,6 +293,8 @@ private fun SuggestionBar(
                 text = when {
                     currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.NATIVE -> "বাংলা"
                     currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
+                    currentPack != null && currentPack.id != "en" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
+                    currentPack != null && currentPack.id != "en" -> currentPack.nativeName.take(4)
                     else -> "EN"
                 },
                 color = theme.accentColor,
