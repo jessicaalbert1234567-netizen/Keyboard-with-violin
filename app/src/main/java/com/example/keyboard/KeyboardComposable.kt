@@ -147,7 +147,9 @@ fun KeyboardComposable(
                 onOpenSettings = onOpenSettings,
                 currentInputMode = settings.currentInputMode,
                 currentLanguageId = settings.currentLanguageId,
-                currentPack = currentPack
+                currentPack = currentPack,
+                recentClipboardEntry = clipboardEntries.firstOrNull(),
+                onClipboardPaste = onClipboardPaste
             )
 
             // Keyboard Body
@@ -168,6 +170,12 @@ fun KeyboardComposable(
                             }
                             settings.currentLanguageId == "ar" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
                                 KeyboardLayoutProvider.getArabicNativeRows(isShifted, spaceLabel)
+                            }
+                            settings.currentLanguageId == "ru" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
+                                KeyboardLayoutProvider.getRussianNativeRows(isShifted, spaceLabel)
+                            }
+                            settings.currentLanguageId == "el" && settings.currentInputMode == KeyboardInputMode.NATIVE -> {
+                                KeyboardLayoutProvider.getGreekNativeRows(isShifted, spaceLabel)
                             }
                             else -> {
                                 KeyboardLayoutProvider.getEnglishAlphaRows(isShifted, isCapsLock, settings.showNumberRow, spaceLabel)
@@ -274,36 +282,47 @@ private fun SuggestionBar(
     onOpenSettings: () -> Unit,
     currentInputMode: KeyboardInputMode,
     currentLanguageId: String,
-    currentPack: com.example.language.LanguagePack? = null
+    currentPack: com.example.language.LanguagePack? = null,
+    recentClipboardEntry: ClipboardEntry? = null,
+    onClipboardPaste: (String) -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp),
+            .height(46.dp),
         color = theme.suggestionBarBackground
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Mode Indicator
-            Text(
-                text = when {
-                    currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.NATIVE -> "বাংলা"
-                    currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
-                    currentPack != null && currentPack.id != "en" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
-                    currentPack != null && currentPack.id != "en" -> currentPack.nativeName.take(4)
-                    else -> "EN"
-                },
-                color = theme.accentColor,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 6.dp)
-            )
+            // Mode Indicator Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(theme.accentColor.copy(alpha = 0.12f))
+                    .padding(horizontal = 7.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = when {
+                        currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.NATIVE -> "বাংলা"
+                        currentLanguageId == "bn" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
+                        currentPack != null && currentPack.id != "en" && currentInputMode == KeyboardInputMode.PHONETIC -> "Phonetic"
+                        currentPack != null && currentPack.id != "en" -> currentPack.nativeName.take(4)
+                        else -> "EN"
+                    },
+                    color = theme.accentColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            // Suggestions List
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Suggestions List or Quick Paste Chip
             Row(
                 modifier = Modifier
                     .weight(1f)
@@ -312,34 +331,75 @@ private fun SuggestionBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (suggestions.isEmpty()) {
-                    Text(
-                        text = "FX Keyboard",
-                        color = theme.suggestionTextColor.copy(alpha = 0.5f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    if (recentClipboardEntry != null && recentClipboardEntry.text.isNotBlank()) {
+                        // Gboard-style quick clipboard suggestion chip
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(theme.accentColor.copy(alpha = 0.15f))
+                                .border(
+                                    width = 1.dp,
+                                    color = theme.accentColor.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                .clickable { onClipboardPaste(recentClipboardEntry.text) }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentPaste,
+                                contentDescription = "Paste clipboard",
+                                tint = theme.accentColor,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Paste: ${recentClipboardEntry.text.trim().take(18)}",
+                                color = theme.suggestionTextColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "FX Keyboard",
+                            color = theme.suggestionTextColor.copy(alpha = 0.45f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 } else {
-                    suggestions.forEachIndexed { index, suggestion ->
+                    // Up to 3 structured suggestions
+                    val displaySuggestions = suggestions.take(3)
+                    displaySuggestions.forEachIndexed { index, suggestion ->
                         if (index > 0) {
                             Box(
                                 modifier = Modifier
                                     .width(1.dp)
-                                    .height(16.dp)
+                                    .height(18.dp)
                                     .background(theme.suggestionDividerColor)
                             )
                         }
+                        val isPrimary = index == 0 || (displaySuggestions.size == 3 && index == 1)
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(8.dp))
+                                .then(
+                                    if (isPrimary) {
+                                        Modifier.background(theme.accentColor.copy(alpha = 0.14f))
+                                    } else Modifier
+                                )
                                 .clickable { onSuggestionClick(suggestion) }
-                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = suggestion,
-                                color = if (index == 0) theme.accentColor else theme.suggestionTextColor,
+                                color = if (isPrimary) theme.accentColor else theme.suggestionTextColor,
                                 fontSize = 14.sp,
-                                fontWeight = if (index == 0) FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = if (isPrimary) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -348,15 +408,17 @@ private fun SuggestionBar(
                 }
             }
 
+            Spacer(modifier = Modifier.width(4.dp))
+
             // Quick Actions: Clipboard & Settings
-            IconButton(onClick = onOpenClipboard, modifier = Modifier.padding(2.dp)) {
+            IconButton(onClick = onOpenClipboard, modifier = Modifier.padding(1.dp)) {
                 Icon(
                     imageVector = Icons.Default.ContentPaste,
                     contentDescription = "Clipboard",
                     tint = theme.suggestionTextColor.copy(alpha = 0.8f)
                 )
             }
-            IconButton(onClick = onOpenSettings, modifier = Modifier.padding(2.dp)) {
+            IconButton(onClick = onOpenSettings, modifier = Modifier.padding(1.dp)) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
@@ -449,6 +511,24 @@ private fun KeyView(
         else -> theme.keyTextColor
     }
 
+    val borderModifier = if (settings.keyBorderSizePercent > 0) {
+        val strokeWidth = (0.5f + (settings.keyBorderSizePercent / 100f) * 2.5f).dp
+        val borderColor = if (theme.keyBorderColor != Color.Transparent) {
+            theme.keyBorderColor
+        } else if (theme.isDark) {
+            Color.White.copy(alpha = 0.15f + (settings.keyBorderSizePercent / 100f) * 0.45f)
+        } else {
+            Color.Black.copy(alpha = 0.12f + (settings.keyBorderSizePercent / 100f) * 0.38f)
+        }
+        Modifier.border(
+            width = strokeWidth,
+            color = borderColor,
+            shape = RoundedCornerShape(settings.keyCornerRadiusDp.dp)
+        )
+    } else {
+        Modifier
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -463,6 +543,7 @@ private fun KeyView(
                 shape = RoundedCornerShape(settings.keyCornerRadiusDp.dp)
             )
             .clip(RoundedCornerShape(settings.keyCornerRadiusDp.dp))
+            .then(borderModifier)
             .background(bgColor.copy(alpha = settings.keyOpacity))
             .pointerInput(keyDef, rootCoordinates) {
                 detectTapGestures(

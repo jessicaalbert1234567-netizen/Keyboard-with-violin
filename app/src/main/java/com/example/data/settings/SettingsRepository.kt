@@ -44,13 +44,17 @@ class SettingsRepository(private val context: Context) {
 
         val THEME_ID = stringPreferencesKey("theme_id")
         val KEY_CORNER_RADIUS = intPreferencesKey("key_corner_radius")
+        val KEY_BORDER_SIZE = intPreferencesKey("key_border_size")
 
         val CURRENT_LANGUAGE = stringPreferencesKey("current_language")
         val CURRENT_INPUT_MODE = stringPreferencesKey("current_input_mode")
 
         val SUGGESTIONS_ENABLED = booleanPreferencesKey("suggestions_enabled")
         val AUTO_CORRECTION = booleanPreferencesKey("auto_correction")
+        val SPELL_CORRECTION_ENABLED = booleanPreferencesKey("spell_correction_enabled")
+        val PERSONAL_DICTIONARY_ENABLED = booleanPreferencesKey("personal_dictionary_enabled")
         val NEXT_WORD_PREDICTION = booleanPreferencesKey("next_word_prediction")
+        val PHONETIC_INPUT_ENABLED = booleanPreferencesKey("phonetic_input_enabled")
 
         val CLIPBOARD_HISTORY_ENABLED = booleanPreferencesKey("clipboard_history_enabled")
         val MAX_CLIPBOARD_ITEMS = intPreferencesKey("max_clipboard_items")
@@ -107,13 +111,17 @@ class SettingsRepository(private val context: Context) {
 
             themeId = prefs[PreferencesKeys.THEME_ID] ?: "dark",
             keyCornerRadiusDp = prefs[PreferencesKeys.KEY_CORNER_RADIUS] ?: 8,
+            keyBorderSizePercent = prefs[PreferencesKeys.KEY_BORDER_SIZE] ?: 0,
 
             currentLanguageId = prefs[PreferencesKeys.CURRENT_LANGUAGE] ?: "en",
             currentInputMode = inputMode,
 
             suggestionsEnabled = prefs[PreferencesKeys.SUGGESTIONS_ENABLED] ?: true,
             autoCorrectionEnabled = prefs[PreferencesKeys.AUTO_CORRECTION] ?: true,
+            spellCorrectionEnabled = prefs[PreferencesKeys.SPELL_CORRECTION_ENABLED] ?: true,
+            personalDictionaryEnabled = prefs[PreferencesKeys.PERSONAL_DICTIONARY_ENABLED] ?: true,
             nextWordPredictionEnabled = prefs[PreferencesKeys.NEXT_WORD_PREDICTION] ?: true,
+            phoneticInputEnabled = prefs[PreferencesKeys.PHONETIC_INPUT_ENABLED] ?: true,
 
             clipboardHistoryEnabled = prefs[PreferencesKeys.CLIPBOARD_HISTORY_ENABLED] ?: true,
             maxClipboardItems = prefs[PreferencesKeys.MAX_CLIPBOARD_ITEMS] ?: 25,
@@ -145,13 +153,17 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setThemeId(themeId: String) = context.dataStore.edit { it[PreferencesKeys.THEME_ID] = themeId }
     suspend fun setKeyCornerRadius(radius: Int) = context.dataStore.edit { it[PreferencesKeys.KEY_CORNER_RADIUS] = radius }
+    suspend fun setKeyBorderSize(sizePercent: Int) = context.dataStore.edit { it[PreferencesKeys.KEY_BORDER_SIZE] = sizePercent }
 
     suspend fun setCurrentLanguage(langId: String) = context.dataStore.edit { it[PreferencesKeys.CURRENT_LANGUAGE] = langId }
     suspend fun setCurrentInputMode(mode: KeyboardInputMode) = context.dataStore.edit { it[PreferencesKeys.CURRENT_INPUT_MODE] = mode.name }
 
     suspend fun setSuggestionsEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.SUGGESTIONS_ENABLED] = enabled }
     suspend fun setAutoCorrectionEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.AUTO_CORRECTION] = enabled }
+    suspend fun setSpellCorrectionEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.SPELL_CORRECTION_ENABLED] = enabled }
+    suspend fun setPersonalDictionaryEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.PERSONAL_DICTIONARY_ENABLED] = enabled }
     suspend fun setNextWordPrediction(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.NEXT_WORD_PREDICTION] = enabled }
+    suspend fun setPhoneticInputEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.PHONETIC_INPUT_ENABLED] = enabled }
 
     suspend fun setClipboardHistoryEnabled(enabled: Boolean) = context.dataStore.edit { it[PreferencesKeys.CLIPBOARD_HISTORY_ENABLED] = enabled }
     suspend fun setMaxClipboardItems(max: Int) = context.dataStore.edit { it[PreferencesKeys.MAX_CLIPBOARD_ITEMS] = max }
@@ -182,11 +194,15 @@ class SettingsRepository(private val context: Context) {
         prefs[PreferencesKeys.PIANO_MODE] = s.pianoMode
         prefs[PreferencesKeys.THEME_ID] = s.themeId
         prefs[PreferencesKeys.KEY_CORNER_RADIUS] = s.keyCornerRadiusDp
+        prefs[PreferencesKeys.KEY_BORDER_SIZE] = s.keyBorderSizePercent
         prefs[PreferencesKeys.CURRENT_LANGUAGE] = s.currentLanguageId
         prefs[PreferencesKeys.CURRENT_INPUT_MODE] = s.currentInputMode.name
         prefs[PreferencesKeys.SUGGESTIONS_ENABLED] = s.suggestionsEnabled
         prefs[PreferencesKeys.AUTO_CORRECTION] = s.autoCorrectionEnabled
+        prefs[PreferencesKeys.SPELL_CORRECTION_ENABLED] = s.spellCorrectionEnabled
+        prefs[PreferencesKeys.PERSONAL_DICTIONARY_ENABLED] = s.personalDictionaryEnabled
         prefs[PreferencesKeys.NEXT_WORD_PREDICTION] = s.nextWordPredictionEnabled
+        prefs[PreferencesKeys.PHONETIC_INPUT_ENABLED] = s.phoneticInputEnabled
         prefs[PreferencesKeys.CLIPBOARD_HISTORY_ENABLED] = s.clipboardHistoryEnabled
         prefs[PreferencesKeys.MAX_CLIPBOARD_ITEMS] = s.maxClipboardItems
         prefs[PreferencesKeys.ONBOARDING_COMPLETED] = s.isOnboardingCompleted

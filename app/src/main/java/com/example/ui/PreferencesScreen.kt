@@ -43,14 +43,14 @@ fun PreferencesScreen(
             fontWeight = FontWeight.Bold
         )
 
-        // Dimensions Card
+        // Keyboard Appearance Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = "Layout & Sizing", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = "Keyboard Appearance", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
                 // Keyboard Height
                 Text(text = "Keyboard Height: ${settings.keyboardHeightDp} dp", fontSize = 13.sp)
@@ -76,6 +76,14 @@ fun PreferencesScreen(
                     valueRange = 1f..10f
                 )
 
+                // Key Border Size
+                Text(text = "Key Border Size: ${settings.keyBorderSizePercent}%", fontSize = 13.sp)
+                Slider(
+                    value = settings.keyBorderSizePercent.toFloat(),
+                    onValueChange = { onUpdateSettings(settings.copy(keyBorderSizePercent = it.toInt())) },
+                    valueRange = 0f..100f
+                )
+
                 // Font Size
                 Text(text = "Key Label Font Size: ${settings.fontSizeSp} sp", fontSize = 13.sp)
                 Slider(
@@ -83,6 +91,119 @@ fun PreferencesScreen(
                     onValueChange = { onUpdateSettings(settings.copy(fontSizeSp = it.toInt())) },
                     valueRange = 14f..28f
                 )
+            }
+        }
+
+        // Suggestions & Corrections Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(text = "Suggestions & Correction", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                // Suggestions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Word Suggestions", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Show predictive suggestions strip above keyboard", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.suggestionsEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(suggestionsEnabled = it)) },
+                        modifier = Modifier.testTag("switch_suggestions")
+                    )
+                }
+
+                // Auto Correction
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto Correction", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Automatically correct misspelled words on space", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.autoCorrectionEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(autoCorrectionEnabled = it)) },
+                        modifier = Modifier.testTag("switch_autocorrect")
+                    )
+                }
+
+                // Spell Correction
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Intelligent Spell Check", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Damerau-Levenshtein edit-distance spell engine", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.spellCorrectionEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(spellCorrectionEnabled = it)) },
+                        modifier = Modifier.testTag("switch_spell_check")
+                    )
+                }
+
+                // Personal Dictionary
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Personal Dictionary", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Learn custom words and prioritize them in suggestions", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.personalDictionaryEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(personalDictionaryEnabled = it)) },
+                        modifier = Modifier.testTag("switch_personal_dict")
+                    )
+                }
+
+                // Next-word Prediction
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Next-word Prediction", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Predict likely next words and phrases from context", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.nextWordPredictionEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(nextWordPredictionEnabled = it)) },
+                        modifier = Modifier.testTag("switch_next_word")
+                    )
+                }
+
+                // Phonetic Input Engine
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Phonetic Input Engine", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Convert transliterated typing into native script", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.phoneticInputEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(phoneticInputEnabled = it)) },
+                        modifier = Modifier.testTag("switch_phonetic")
+                    )
+                }
             }
         }
 

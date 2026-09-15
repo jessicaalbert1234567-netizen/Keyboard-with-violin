@@ -212,6 +212,68 @@ object KeyboardLayoutProvider {
         return rows
     }
 
+    fun getRussianNativeRows(isShifted: Boolean, spaceLabel: String = "Русский"): List<List<KeyDefinition>> {
+        val rows = mutableListOf<List<KeyDefinition>>()
+        val r1 = if (isShifted) listOf("Й", "Ц", "У", "К", "Е", "Н", "Г", "Ш", "Щ", "З", "Х")
+                 else listOf("й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х")
+        rows.add(r1.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r2 = if (isShifted) listOf("Ф", "Ы", "В", "А", "П", "Р", "О", "Л", "Д", "Ж", "Э")
+                 else listOf("ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э")
+        rows.add(r2.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r3 = mutableListOf<KeyDefinition>()
+        r3.add(KeyDefinition(label = "⇧", output = "", type = KeyType.SHIFT, weight = 1.3f, isToggleActive = isShifted))
+        val r3Chars = if (isShifted) listOf("Я", "Ч", "С", "М", "И", "Т", "Ь", "Б", "Ю")
+                      else listOf("я", "ч", "с", "м", "и", "т", "ь", "б", "ю")
+        r3.addAll(r3Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+        r3.add(KeyDefinition(label = "⌫", output = "", type = KeyType.BACKSPACE, weight = 1.3f))
+        rows.add(r3)
+
+        val r4 = listOf(
+            KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
+            KeyDefinition(label = "😊", output = "", type = KeyType.EMOJI_SWITCH, weight = 1.0f),
+            KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = ",", output = ",", type = KeyType.COMMA, weight = 1.0f),
+            KeyDefinition(label = ".", output = ".", type = KeyType.PERIOD, weight = 1.0f),
+            KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
+        )
+        rows.add(r4)
+        return rows
+    }
+
+    fun getGreekNativeRows(isShifted: Boolean, spaceLabel: String = "Ελληνικά"): List<List<KeyDefinition>> {
+        val rows = mutableListOf<List<KeyDefinition>>()
+        val r1 = if (isShifted) listOf("Ε", "Ρ", "Τ", "Υ", "Θ", "Ι", "Ο", "Π")
+                 else listOf("ε", "ρ", "τ", "υ", "θ", "ι", "ο", "π")
+        rows.add(r1.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r2 = if (isShifted) listOf("Α", "Σ", "Δ", "Φ", "Γ", "Η", "Ξ", "Κ", "Λ")
+                 else listOf("α", "σ", "δ", "φ", "γ", "η", "ξ", "κ", "λ")
+        rows.add(r2.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+
+        val r3 = mutableListOf<KeyDefinition>()
+        r3.add(KeyDefinition(label = "⇧", output = "", type = KeyType.SHIFT, weight = 1.3f, isToggleActive = isShifted))
+        val r3Chars = if (isShifted) listOf("Ζ", "Χ", "Ψ", "Ω", "Β", "Ν", "Μ")
+                      else listOf("ζ", "χ", "ψ", "ω", "β", "ν", "μ")
+        r3.addAll(r3Chars.map { KeyDefinition(label = it, output = it, weight = 1.0f) })
+        r3.add(KeyDefinition(label = "⌫", output = "", type = KeyType.BACKSPACE, weight = 1.3f))
+        rows.add(r3)
+
+        val r4 = listOf(
+            KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
+            KeyDefinition(label = "😊", output = "", type = KeyType.EMOJI_SWITCH, weight = 1.0f),
+            KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = ",", output = ",", type = KeyType.COMMA, weight = 1.0f),
+            KeyDefinition(label = ".", output = ".", type = KeyType.PERIOD, weight = 1.0f),
+            KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
+        )
+        rows.add(r4)
+        return rows
+    }
+
     fun getSymbolsPage1Rows(spaceLabel: String = "Space"): List<List<KeyDefinition>> {
         val rows = mutableListOf<List<KeyDefinition>>()
         rows.add(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0").map { KeyDefinition(it, output = it) })

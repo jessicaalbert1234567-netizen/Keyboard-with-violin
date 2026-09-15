@@ -90,6 +90,36 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun testSpellCheckEngineDamerauLevenshtein() {
+        val distance = com.example.suggestions.SpellCheckEngine.damerauLevenshteinDistance("teh", "the")
+        assertEquals(1, distance)
+
+        val candidates = com.example.suggestions.SpellCheckEngine.findCandidates("helo", limit = 2)
+        assertTrue(candidates.contains("hello") || candidates.contains("help"))
+    }
+
+    @Test
+    fun testBengaliCandidatesAmiAndTumi() {
+        val amiCandidates = transliterator.getCandidates("ami")
+        assertTrue("ami candidates should contain আমি", amiCandidates.contains("আমি"))
+        assertTrue("ami candidates should have up to 3 options", amiCandidates.size in 1..3)
+
+        val tumiCandidates = transliterator.getCandidates("tumi")
+        assertTrue("tumi candidates should contain তুমি", tumiCandidates.contains("তুমি"))
+    }
+
+    @Test
+    fun testMultiLanguageTransliterators() {
+        val arabic = com.example.language.ArabicTransliterator()
+        val arabicRes = arabic.transliterate("salam")
+        assertTrue("Arabic transliteration should not be empty", arabicRes.isNotEmpty())
+
+        val russian = com.example.language.RussianTransliterator()
+        val russianRes = russian.transliterate("privet")
+        assertTrue("Russian transliteration should not be empty", russianRes.isNotEmpty())
+    }
+
+    @Test
     fun testKeyboardLayoutRows() {
         val rows = KeyboardLayoutProvider.getEnglishAlphaRows(isShifted = false, isCapsLock = false, showNumberRow = true)
         assertTrue(rows.isNotEmpty())

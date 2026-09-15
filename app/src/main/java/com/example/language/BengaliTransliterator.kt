@@ -137,6 +137,20 @@ class BengaliTransliterator : LanguageTransliterator {
         "oi" to "ৈ", "ou" to "ৌ", "ri" to "ৃ"
     )
 
+    private val contextualCandidates = mapOf(
+        "ami" to listOf("আমি", "আমি তো", "আমার"),
+        "tumi" to listOf("তুমি", "তোমার", "তোমাকে"),
+        "apni" to listOf("আপনি", "আপনার", "আপনাকে"),
+        "amra" to listOf("আমরা", "আমাদের", "আমাদের সাথে"),
+        "valo" to listOf("ভালো", "ভালো আছি", "ভালো আছো"),
+        "bhalo" to listOf("ভালো", "ভালো আছি", "ভালো আছো"),
+        "kemon" to listOf("কেমন", "কেমন আছো", "কেমন আছেন"),
+        "kothay" to listOf("কোথায়", "কোথায় আছো", "কোথায় যাবেন"),
+        "kothai" to listOf("কোথায়", "কোথায় আছো", "কোথায় যাবেন"),
+        "dhonnobad" to listOf("ধন্যবাদ", "অনেক ধন্যবাদ", "ধন্যবাদ আপনাকে"),
+        "shuvo" to listOf("শুভ", "শুভ সকাল", "শুভ রাত্রি")
+    )
+
     override fun transliterate(englishInput: String): String {
         if (englishInput.isBlank()) return ""
         val trimmed = englishInput.trim()
@@ -160,23 +174,26 @@ class BengaliTransliterator : LanguageTransliterator {
         val lower = trimmed.lowercase()
         val result = LinkedHashSet<String>()
 
-        // 1. Exact or prefix match from dictionary
+        // 1. Contextual candidates (prioritized top suggestions like "আমি", "আমি তো", "আমার")
+        contextualCandidates[lower]?.let { result.addAll(it) }
+
+        // 2. Exact or prefix match from dictionary
         dictionary[lower]?.let { result.add(it) }
 
-        // 2. Rule based conversion
+        // 3. Rule based conversion
         val ruleBased = ruleBasedTransliterate(trimmed)
         if (ruleBased.isNotBlank()) {
             result.add(ruleBased)
         }
 
-        // 3. Dictionary completions
+        // 4. Dictionary completions
         for ((k, v) in dictionary) {
             if (k.startsWith(lower) && k != lower && !result.contains(v)) {
                 result.add(v)
                 if (result.size >= 4) break
             }
         }
-        return result.toList()
+        return result.take(3).toList()
     }
 
     private fun ruleBasedTransliterate(input: String): String {

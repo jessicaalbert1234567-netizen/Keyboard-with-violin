@@ -59,6 +59,7 @@ data class KeyboardSettings(
     // Appearance & Theme
     val themeId: String = "dark",
     val keyCornerRadiusDp: Int = 8,
+    val keyBorderSizePercent: Int = 0,
 
     // Languages
     val currentLanguageId: String = "en",
@@ -67,8 +68,10 @@ data class KeyboardSettings(
     // Suggestions & Autocorrect
     val suggestionsEnabled: Boolean = true,
     val autoCorrectionEnabled: Boolean = true,
+    val spellCorrectionEnabled: Boolean = true,
     val personalDictionaryEnabled: Boolean = true,
     val nextWordPredictionEnabled: Boolean = true,
+    val phoneticInputEnabled: Boolean = true,
 
     // Clipboard
     val clipboardHistoryEnabled: Boolean = true,

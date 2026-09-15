@@ -122,15 +122,23 @@ class LanguagePackManager(private val context: Context) {
             packDao.updateStatus(packId, PackDownloadStatus.DOWNLOADING.name)
             delay(1200L) // Simulate network streaming / chunk transfer
 
-            // Save local pack file
-            val dir = File(context.filesDir, "language_packs").apply { mkdirs() }
+            // Save local pack directory and files
+            val dir = File(context.filesDir, "language_packs/$packId").apply { mkdirs() }
             val packFile = File(dir, "$packId.pack")
-            val dummyPackData = "FX_KEYBOARD_PACK:$packId:${System.currentTimeMillis()}".toByteArray()
-            FileOutputStream(packFile).use { it.write(dummyPackData) }
+            val manifestFile = File(dir, "manifest.json")
+            val phoneticFile = File(dir, "phonetic_map.json")
+            val dictFile = File(dir, "dictionary.json")
+
+            manifestFile.writeText("""{"id":"$packId","name":"${pack.name}","nativeName":"${pack.nativeName}","version":${pack.version}}""")
+            phoneticFile.writeText("""{}""")
+            dictFile.writeText("""{"words":["${pack.nativeName}"]}""")
+            
+            val packData = "FX_KEYBOARD_PACK:$packId:${System.currentTimeMillis()}".toByteArray()
+            FileOutputStream(packFile).use { it.write(packData) }
 
             // Verify SHA-256
             val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(dummyPackData)
+            val digest = md.digest(packData)
             val calculatedSha = digest.joinToString("") { "%02x".format(it) }
 
             // Validate language pack before finalizing installation
@@ -143,6 +151,14 @@ class LanguagePackManager(private val context: Context) {
                         sha256 = calculatedSha
                     )
                 )
+
+                // Register transliterator dynamically if not already registered
+                val existing = TransliterationEngine.instance.getTransliterator(packId)
+                if (existing == null) {
+                    val dynamicTransliterator = DynamicLanguageTransliterator.fromDirectory(dir, packId, pack.name)
+                        ?: DynamicLanguageTransliterator(packId, pack.name, emptyMap(), listOf(pack.nativeName))
+                    TransliterationEngine.instance.register(dynamicTransliterator)
+                }
             } else {
                 // If corrupted or invalid, revert to AVAILABLE and delete partial file
                 try {

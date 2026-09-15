@@ -474,7 +474,11 @@ class FXInputMethodService : InputMethodService(),
             // Check if English auto spell correction is enabled and applicable:
             if (settings.autoCorrectionEnabled && settings.currentLanguageId == "en") {
                 val correction = com.example.suggestions.EnglishSpellCorrector.getCorrection(raw)
-                if (correction != null && correction != raw) {
+                    ?: if (settings.spellCorrectionEnabled && raw.length in 4..15) {
+                        com.example.suggestions.SpellCheckEngine.findCandidates(raw, limit = 1).firstOrNull()
+                    } else null
+
+                if (correction != null && correction.lowercase() != raw.lowercase()) {
                     ic.deleteSurroundingText(raw.length, 0)
                     ic.commitText(correction, 1)
                     previousWord = correction
@@ -530,16 +534,22 @@ class FXInputMethodService : InputMethodService(),
             val isPhonetic = settings.currentInputMode == KeyboardInputMode.PHONETIC
             if (isPhonetic) {
                 val phoneticCandidates = transliterationEngine.getCandidates(settings.currentLanguageId, currentWord)
-                suggestions = phoneticCandidates
+                suggestions = if (phoneticCandidates.isNotEmpty()) {
+                    phoneticCandidates.take(3)
+                } else if (currentWord.isNotEmpty()) {
+                    listOf(transliterationEngine.transliterate(settings.currentLanguageId, currentWord))
+                } else {
+                    emptyList()
+                }
             } else {
                 val list = suggestionEngine.getSuggestions(
                     currentWord = currentWord,
                     previousWord = previousWord,
                     languageCode = settings.currentLanguageId,
-                    limit = 4,
+                    limit = 3,
                     personalDictionaryEnabled = settings.personalDictionaryEnabled
                 )
-                suggestions = list
+                suggestions = list.take(3)
             }
         }
     }

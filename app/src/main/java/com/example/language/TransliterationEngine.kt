@@ -6,6 +6,10 @@ class TransliterationEngine {
     init {
         register(BengaliTransliterator())
         register(HindiTransliterator())
+        register(ArabicTransliterator())
+        register(RussianTransliterator())
+        register(GreekTransliterator())
+        register(JapaneseTransliterator())
     }
 
     fun register(transliterator: LanguageTransliterator) {

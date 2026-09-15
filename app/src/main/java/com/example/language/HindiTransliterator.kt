@@ -59,6 +59,17 @@ class HindiTransliterator : LanguageTransliterator {
         "o" to "ो", "au" to "ौ", "ou" to "ौ", "ri" to "ृ"
     )
 
+    private val contextualCandidates = mapOf(
+        "namaste" to listOf("नमस्ते", "नमस्ते जी", "नमस्कार"),
+        "aap" to listOf("आप", "आपका", "आपको"),
+        "tum" to listOf("तुम", "तुम्हारा", "तुम्हें"),
+        "kaise" to listOf("कैसे", "कैसे हो", "कैसे हैं"),
+        "kya" to listOf("क्या", "क्या हाल", "क्या बात"),
+        "bharat" to listOf("भारत", "भारतीय", "भारत माता"),
+        "shukriya" to listOf("शुक्रिया", "बहुत शुक्रिया", "धन्यवाद"),
+        "dhanyavaad" to listOf("धन्यवाद", "बहुत धन्यवाद", "शुक्रिया")
+    )
+
     override fun transliterate(englishInput: String): String {
         if (englishInput.isBlank()) return ""
         val trimmed = englishInput.trim()
@@ -122,6 +133,7 @@ class HindiTransliterator : LanguageTransliterator {
         if (englishInput.isBlank()) return emptyList()
         val lower = englishInput.lowercase().trim()
         val result = LinkedHashSet<String>()
+        contextualCandidates[lower]?.let { result.addAll(it) }
         dictionary[lower]?.let { result.add(it) }
         val ruleBased = ruleBasedTransliterate(englishInput.trim())
         if (ruleBased.isNotBlank()) {
@@ -130,12 +142,12 @@ class HindiTransliterator : LanguageTransliterator {
         for ((k, v) in dictionary) {
             if (k.startsWith(lower) && k != lower && !result.contains(v)) {
                 result.add(v)
-                if (result.size >= 4) break
+                if (result.size >= 3) break
             }
         }
         if (result.isEmpty()) {
             result.add(englishInput)
         }
-        return result.toList()
+        return result.take(3).toList()
     }
 }
