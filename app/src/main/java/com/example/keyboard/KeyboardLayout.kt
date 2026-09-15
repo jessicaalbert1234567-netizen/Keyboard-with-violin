@@ -10,7 +10,20 @@ enum class LayoutViewMode {
 
 object KeyboardLayoutProvider {
 
-    fun getEnglishAlphaRows(isShifted: Boolean, isCapsLock: Boolean, showNumberRow: Boolean): List<List<KeyDefinition>> {
+    fun getSpaceLabel(languageId: String, inputMode: com.example.data.settings.KeyboardInputMode): String {
+        return when {
+            languageId == "bn" && inputMode == com.example.data.settings.KeyboardInputMode.NATIVE -> "বাংলা"
+            languageId == "bn" && inputMode == com.example.data.settings.KeyboardInputMode.PHONETIC -> "বাংলা (Phonetic)"
+            else -> "English"
+        }
+    }
+
+    fun getEnglishAlphaRows(
+        isShifted: Boolean,
+        isCapsLock: Boolean,
+        showNumberRow: Boolean,
+        spaceLabel: String = "English"
+    ): List<List<KeyDefinition>> {
         val rows = mutableListOf<List<KeyDefinition>>()
 
         // Optional Number Row
@@ -62,7 +75,7 @@ object KeyboardLayoutProvider {
             KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
             KeyDefinition(label = "😊", output = "", type = KeyType.EMOJI_SWITCH, weight = 1.0f),
             KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
-            KeyDefinition(label = "Space", output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
             KeyDefinition(label = ",", output = ",", type = KeyType.COMMA, weight = 1.0f),
             KeyDefinition(label = ".", output = ".", type = KeyType.PERIOD, weight = 1.0f),
             KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
@@ -72,7 +85,7 @@ object KeyboardLayoutProvider {
         return rows
     }
 
-    fun getBengaliNativeRows(isShifted: Boolean): List<List<KeyDefinition>> {
+    fun getBengaliNativeRows(isShifted: Boolean, spaceLabel: String = "বাংলা"): List<List<KeyDefinition>> {
         val rows = mutableListOf<List<KeyDefinition>>()
 
         // Bengali Vowels & Consonants layout
@@ -105,7 +118,7 @@ object KeyboardLayoutProvider {
             KeyDefinition(label = "?123", output = "", type = KeyType.SYMBOL_SWITCH, weight = 1.3f),
             KeyDefinition(label = "্", output = "্", weight = 1.0f), // Hasant (conjunct builder)
             KeyDefinition(label = "🌐", output = "", type = KeyType.LANGUAGE_SWITCH, weight = 1.0f),
-            KeyDefinition(label = "স্পেস", output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
             KeyDefinition(label = "।", output = "।", weight = 1.0f), // Bengali Dari (period)
             KeyDefinition(label = "ং", output = "ং", weight = 1.0f),
             KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
@@ -115,7 +128,7 @@ object KeyboardLayoutProvider {
         return rows
     }
 
-    fun getSymbolsPage1Rows(): List<List<KeyDefinition>> {
+    fun getSymbolsPage1Rows(spaceLabel: String = "Space"): List<List<KeyDefinition>> {
         val rows = mutableListOf<List<KeyDefinition>>()
         rows.add(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0").map { KeyDefinition(it, output = it) })
         rows.add(listOf("@", "#", "$", "_", "&", "-", "+", "(", ")", "/").map { KeyDefinition(it, output = it) })
@@ -128,7 +141,7 @@ object KeyboardLayoutProvider {
             KeyDefinition(label = "ABC", output = "", type = KeyType.LETTER_SWITCH, weight = 1.4f),
             KeyDefinition(label = "📋", output = "", type = KeyType.CLIPBOARD_SWITCH, weight = 1.0f),
             KeyDefinition(label = ",", output = ",", type = KeyType.COMMA, weight = 1.0f),
-            KeyDefinition(label = "Space", output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
             KeyDefinition(label = ".", output = ".", type = KeyType.PERIOD, weight = 1.0f),
             KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)
         )
@@ -136,7 +149,7 @@ object KeyboardLayoutProvider {
         return rows
     }
 
-    fun getSymbolsPage2Rows(): List<List<KeyDefinition>> {
+    fun getSymbolsPage2Rows(spaceLabel: String = "Space"): List<List<KeyDefinition>> {
         val rows = mutableListOf<List<KeyDefinition>>()
         rows.add(listOf("~", "`", "|", "•", "√", "π", "÷", "×", "¶", "∆").map { KeyDefinition(it, output = it) })
         rows.add(listOf("£", "€", "¥", "¢", "^", "°", "=", "{", "}", "\\").map { KeyDefinition(it, output = it) })
@@ -149,7 +162,7 @@ object KeyboardLayoutProvider {
             KeyDefinition(label = "ABC", output = "", type = KeyType.LETTER_SWITCH, weight = 1.4f),
             KeyDefinition(label = "<", output = "<", weight = 1.0f),
             KeyDefinition(label = ">", output = ">", weight = 1.0f),
-            KeyDefinition(label = "Space", output = " ", type = KeyType.SPACE, weight = 3.6f),
+            KeyDefinition(label = spaceLabel, output = " ", type = KeyType.SPACE, weight = 3.6f),
             KeyDefinition(label = "«", output = "«", weight = 1.0f),
             KeyDefinition(label = "»", output = "»", weight = 1.0f),
             KeyDefinition(label = "↵", output = "\n", type = KeyType.ENTER, weight = 1.5f)

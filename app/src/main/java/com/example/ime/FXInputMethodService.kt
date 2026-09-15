@@ -13,6 +13,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -178,6 +179,8 @@ class FXInputMethodService : InputMethodService(),
 
             setContent {
                 val settings by settingsRepo.settingsFlow.collectAsState(initial = KeyboardSettings())
+                effectEngine.settings = settings
+                soundEngine.settings = settings
                 val theme = ThemeEngine.getThemeById(settings.themeId)
                 val clipboardEntries by clipboardManager.entriesFlow.collectAsState(initial = emptyList())
 
@@ -261,6 +264,9 @@ class FXInputMethodService : InputMethodService(),
     }
 
     private fun handleKeyPress(keyDef: KeyDefinition, center: Offset, size: Size, settings: KeyboardSettings) {
+        effectEngine.settings = settings
+        soundEngine.settings = settings
+
         // Trigger visual effect & sound immediately (non-blocking)
         if (!isPasswordField) {
             effectEngine.triggerKeyEffect(center.x, center.y, size.width, size.height)
@@ -301,11 +307,16 @@ class FXInputMethodService : InputMethodService(),
             }
 
             KeyType.BACKSPACE -> {
-                if (composingBuffer.isNotEmpty()) {
-                    composingBuffer.deleteCharAt(composingBuffer.length - 1)
-                    if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+                val selected = ic.getSelectedText(0)
+                if (!selected.isNullOrEmpty()) {
+                    ic.commitText("", 1)
+                    if (composingBuffer.isNotEmpty()) composingBuffer.clear()
+                } else if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+                    if (composingBuffer.isNotEmpty()) {
+                        composingBuffer.deleteCharAt(composingBuffer.length - 1)
                         if (composingBuffer.isEmpty()) {
                             ic.finishComposingText()
+                            ic.commitText("", 1)
                         } else {
                             val transliterated = transliterationEngine.transliterate("bn", composingBuffer.toString())
                             ic.setComposingText(transliterated, 1)
@@ -314,6 +325,9 @@ class FXInputMethodService : InputMethodService(),
                         ic.deleteSurroundingText(1, 0)
                     }
                 } else {
+                    if (composingBuffer.isNotEmpty()) {
+                        composingBuffer.deleteCharAt(composingBuffer.length - 1)
+                    }
                     ic.deleteSurroundingText(1, 0)
                 }
                 updateSuggestions(settings)
@@ -399,29 +413,59 @@ class FXInputMethodService : InputMethodService(),
 
     private fun commitComposingWord(settings: KeyboardSettings) {
         val ic = currentInputConnection ?: return
+        if (composingBuffer.isEmpty()) return
+
         val raw = composingBuffer.toString()
-        val textToCommit = if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
-            transliterationEngine.transliterate("bn", raw)
+        if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+            ic.finishComposingText()
+            val textToCommit = transliterationEngine.transliterate("bn", raw)
+            ic.commitText(textToCommit, 1)
+            if (!isPasswordField && textToCommit.isNotBlank()) {
+                serviceScope.launch {
+                    suggestionEngine.learnWord(textToCommit, "bn")
+                }
+            }
+            previousWord = textToCommit
         } else {
-            raw
-        }
-        ic.commitText(textToCommit, 1)
-        if (!isPasswordField && textToCommit.isNotBlank()) {
-            serviceScope.launch {
-                suggestionEngine.learnWord(textToCommit, settings.currentLanguageId)
+            // English or other native mode:
+            // The characters were already inserted into the editor.
+            // Check if English auto spell correction is enabled and applicable:
+            if (settings.autoCorrectionEnabled && settings.currentLanguageId == "en") {
+                val correction = com.example.suggestions.EnglishSpellCorrector.getCorrection(raw)
+                if (correction != null && correction != raw) {
+                    ic.deleteSurroundingText(raw.length, 0)
+                    ic.commitText(correction, 1)
+                    previousWord = correction
+                } else {
+                    previousWord = raw
+                    if (!isPasswordField && raw.isNotBlank()) {
+                        serviceScope.launch {
+                            suggestionEngine.learnWord(raw, "en")
+                        }
+                    }
+                }
+            } else {
+                previousWord = raw
+                if (!isPasswordField && raw.isNotBlank()) {
+                    serviceScope.launch {
+                        suggestionEngine.learnWord(raw, settings.currentLanguageId)
+                    }
+                }
             }
         }
-        previousWord = textToCommit
         composingBuffer.clear()
     }
 
     private fun commitSuggestion(suggestion: String, settings: KeyboardSettings) {
         val ic = currentInputConnection ?: return
-        if (composingBuffer.isNotEmpty()) {
-            ic.finishComposingText()
-            ic.deleteSurroundingText(composingBuffer.length, 0)
+        if (settings.currentInputMode == KeyboardInputMode.PHONETIC && settings.currentLanguageId == "bn") {
+            ic.commitText("$suggestion ", 1)
+        } else {
+            if (composingBuffer.isNotEmpty()) {
+                ic.deleteSurroundingText(composingBuffer.length, 0)
+            }
+            ic.commitText("$suggestion ", 1)
         }
-        ic.commitText("$suggestion ", 1)
         if (!isPasswordField) {
             serviceScope.launch {
                 suggestionEngine.learnWord(suggestion, settings.currentLanguageId)
@@ -447,7 +491,8 @@ class FXInputMethodService : InputMethodService(),
                     currentWord = currentWord,
                     previousWord = previousWord,
                     languageCode = settings.currentLanguageId,
-                    limit = 4
+                    limit = 4,
+                    personalDictionaryEnabled = settings.personalDictionaryEnabled
                 )
                 suggestions = list
             }

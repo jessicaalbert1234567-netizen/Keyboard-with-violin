@@ -67,6 +67,7 @@ data class KeyboardSettings(
     // Suggestions & Autocorrect
     val suggestionsEnabled: Boolean = true,
     val autoCorrectionEnabled: Boolean = true,
+    val personalDictionaryEnabled: Boolean = true,
     val nextWordPredictionEnabled: Boolean = true,
 
     // Clipboard

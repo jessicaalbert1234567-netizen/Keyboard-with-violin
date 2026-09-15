@@ -13,6 +13,7 @@ class BengaliTransliterator : LanguageTransliterator {
         "tumi" to "তুমি",
         "tomra" to "তোমরা",
         "tomar" to "তোমার",
+        "tumar" to "তোমার",
         "tomader" to "তোমাদের",
         "apni" to "আপনি",
         "apnar" to "আপনার",
@@ -24,6 +25,7 @@ class BengaliTransliterator : LanguageTransliterator {
         "bhalo" to "ভালো",
         "valo" to "ভালো",
         "bhaloachi" to "ভালো আছি",
+        "valoachi" to "ভালো আছি",
         "kemon" to "কেমন",
         "acho" to "আছো",
         "achho" to "আছো",
@@ -44,9 +46,12 @@ class BengaliTransliterator : LanguageTransliterator {
         "bhat" to "ভাত",
         "khaba" to "খাবা",
         "khabo" to "খাবো",
+        "khabar" to "খাবার",
         "jai" to "যাই",
+        "jabo" to "যাবো",
         "jabona" to "যাবো না",
         "kothai" to "কোথায়",
+        "kothay" to "কোথায়",
         "ki" to "কি",
         "keno" to "কেন",
         "kokhon" to "কখন",
@@ -60,53 +65,107 @@ class BengaliTransliterator : LanguageTransliterator {
         "somoy" to "সময়",
         "kaj" to "কাজ",
         "bari" to "বাড়ি",
+        "basha" to "বাসা",
+        "bhasha" to "ভাষা",
         "ghor" to "ঘর",
         "pani" to "পানি",
-        "jol" to "জল"
+        "jol" to "জল",
+        "dada" to "দাদা",
+        "bhai" to "ভাই",
+        "bon" to "বোন",
+        "baba" to "বাবা",
+        "ma" to "মা",
+        "kichu" to "কিছু",
+        "ekhon" to "এখন",
+        "tokhon" to "তখন",
+        "jekhane" to "যেখানে",
+        "shekhane" to "সেখানে",
+        "shathe" to "সাথে",
+        "sathe" to "সাথে",
+        "boi" to "বই",
+        "gaan" to "গান"
     )
 
-    // Phonetic rule replacement chunks
+    // Multi-letter and consonant rules (checked in greedy longest-prefix order)
     private val consonantRules = listOf(
-        "kkh" to "ক্ষ", "kkhy" to "ক্ষ্য",
-        "kh" to "খ", "gh" to "ঘ", "ng" to "ঙ",
+        "kkhy" to "ক্ষ্য", "kkh" to "ক্ষ",
+        "ggy" to "জ্ঞ", "jnh" to "জ্ঞ",
+        "khr" to "খ্র", "ghr" to "ঘ্র", "phr" to "ফ্র",
+        "k" to "ক", "kh" to "খ", "g" to "গ", "gh" to "ঘ", "ng" to "ং",
         "ch" to "ছ", "c" to "চ", "jh" to "ঝ", "j" to "জ",
         "th" to "থ", "dh" to "ধ", "bh" to "ভ", "ph" to "ফ",
         "sh" to "শ", "ss" to "ষ", "s" to "স", "h" to "হ",
-        "k" to "ক", "g" to "গ", "t" to "ত", "d" to "দ",
-        "n" to "ন", "p" to "প", "b" to "ব", "m" to "ম",
-        "r" to "র", "l" to "ল", "y" to "য", "w" to "ও"
+        "t" to "ত", "d" to "দ",
+        "T" to "ট", "Th" to "ঠ", "D" to "ড", "Dh" to "ঢ",
+        "n" to "ন", "N" to "ণ",
+        "p" to "প", "f" to "ফ", "b" to "ব", "v" to "ভ", "m" to "ম",
+        "r" to "র", "R" to "ড়", "Rh" to "ঢ়",
+        "l" to "ল",
+        "w" to "ও",
+        "z" to "জ", "Z" to "্য",
+        "x" to "ক্স", "X" to "ক্ষ",
+        "q" to "ক", "Q" to "ৎ"
+    )
+
+    // Single character QWERTY fallback map for keys Q through M
+    // Guarantees every single English letter produces a valid Bengali character
+    private val singleKeyBengaliMap = mapOf(
+        'q' to "ক", 'w' to "ও", 'e' to "এ", 'r' to "র", 't' to "ত",
+        'y' to "য", 'u' to "উ", 'i' to "ই", 'o' to "ও", 'p' to "প",
+        'a' to "আ", 's' to "স", 'd' to "দ", 'f' to "ফ", 'g' to "গ",
+        'h' to "হ", 'j' to "জ", 'k' to "ক", 'l' to "ল",
+        'z' to "জ", 'x' to "ক্স", 'c' to "চ", 'v' to "ভ", 'b' to "ব",
+        'n' to "ন", 'm' to "ম",
+        // Capital (Shifted) QWERTY letters
+        'Q' to "ৎ", 'W' to "ও", 'E' to "ঈ", 'R' to "ড়", 'T' to "ট",
+        'Y' to "য়", 'U' to "ঊ", 'I' to "ঈ", 'O' to "ঔ", 'P' to "ফ",
+        'A' to "অ", 'S' to "শ", 'D' to "ড", 'F' to "ফ", 'G' to "ঘ",
+        'H' to "ঃ", 'J' to "ঝ", 'K' to "খ", 'L' to "ল",
+        'Z' to "্য", 'X' to "ক্ষ", 'C' to "ছ", 'V' to "ভ", 'B' to "ব",
+        'N' to "ণ", 'M' to "ং"
     )
 
     private val vowelMapInitial = mapOf(
-        "a" to "আ", "aa" to "আ", "i" to "ই", "ee" to "ঈ",
-        "u" to "উ", "oo" to "ঊ", "e" to "এ", "o" to "ও", "oi" to "ঐ", "ou" to "ঔ"
+        "aa" to "আ", "a" to "আ", "ee" to "ঈ", "i" to "ই",
+        "oo" to "ঊ", "u" to "উ", "e" to "এ", "o" to "ও",
+        "oi" to "ঐ", "ou" to "ঔ", "ri" to "ঋ"
     )
 
     private val vowelMapKar = mapOf(
-        "a" to "া", "aa" to "া", "i" to "ি", "ee" to "ী",
-        "u" to "ু", "oo" to "ূ", "e" to "ে", "o" to "ো", "oi" to "ৈ", "ou" to "ৌ"
+        "aa" to "া", "a" to "া", "ee" to "ী", "i" to "ি",
+        "oo" to "ূ", "u" to "ু", "e" to "ে", "o" to "ো",
+        "oi" to "ৈ", "ou" to "ৌ", "ri" to "ৃ"
     )
 
     override fun transliterate(englishInput: String): String {
         if (englishInput.isBlank()) return ""
-        val lower = englishInput.lowercase().trim()
+        val trimmed = englishInput.trim()
+        val lower = trimmed.lowercase()
+
+        // 1. Direct dictionary match
         dictionary[lower]?.let { return it }
 
-        // Rule based fallback phonetic transliteration
-        return ruleBasedTransliterate(lower)
+        // 2. Single key direct check (if exact single letter typed)
+        if (trimmed.length == 1) {
+            singleKeyBengaliMap[trimmed[0]]?.let { return it }
+        }
+
+        // 3. Rule based phonetic transliteration
+        return ruleBasedTransliterate(trimmed)
     }
 
     override fun getCandidates(englishInput: String): List<String> {
         if (englishInput.isBlank()) return emptyList()
-        val lower = englishInput.lowercase().trim()
-        val result = mutableListOf<String>()
+        val trimmed = englishInput.trim()
+        val lower = trimmed.lowercase()
+        val result = LinkedHashSet<String>()
 
         // 1. Exact or prefix match from dictionary
         dictionary[lower]?.let { result.add(it) }
 
         // 2. Rule based conversion
-        val ruleBased = ruleBasedTransliterate(lower)
-        if (!result.contains(ruleBased)) {
+        val ruleBased = ruleBasedTransliterate(trimmed)
+        if (ruleBased.isNotBlank()) {
             result.add(ruleBased)
         }
 
@@ -117,7 +176,7 @@ class BengaliTransliterator : LanguageTransliterator {
                 if (result.size >= 4) break
             }
         }
-        return result
+        return result.toList()
     }
 
     private fun ruleBasedTransliterate(input: String): String {
@@ -126,46 +185,68 @@ class BengaliTransliterator : LanguageTransliterator {
         var prevWasConsonant = false
 
         while (i < input.length) {
-            // Check dictionary prefixes or digraphs
-            var matched = false
+            // Check special diphthong sequences like "ay" -> "ায়", "oy" -> "য়"
+            if (prevWasConsonant && input.startsWith("ay", i, ignoreCase = true)) {
+                sb.append("ায়")
+                i += 2
+                prevWasConsonant = false
+                continue
+            }
+            if (prevWasConsonant && input.startsWith("oy", i, ignoreCase = true)) {
+                sb.append("য়")
+                i += 2
+                prevWasConsonant = false
+                continue
+            }
+
+            // Check multi-letter consonants in order
+            var matchedConsonant = false
             for ((pat, replacement) in consonantRules) {
-                if (input.startsWith(pat, i)) {
+                if (input.startsWith(pat, i, ignoreCase = pat.all { it.isLowerCase() })) {
                     sb.append(replacement)
                     i += pat.length
                     prevWasConsonant = true
-                    matched = true
+                    matchedConsonant = true
                     break
                 }
             }
-            if (matched) continue
+            if (matchedConsonant) continue
 
-            // Check vowels
+            // Check vowels (length 2 down to 1)
+            var matchedVowel = false
             for (len in 2 downTo 1) {
                 if (i + len <= input.length) {
-                    val sub = input.substring(i, i + len)
+                    val sub = input.substring(i, i + len).lowercase()
                     if (prevWasConsonant) {
                         vowelMapKar[sub]?.let { kar ->
                             sb.append(kar)
                             i += len
                             prevWasConsonant = false
-                            matched = true
+                            matchedVowel = true
                         }
                     } else {
                         vowelMapInitial[sub]?.let { initial ->
                             sb.append(initial)
                             i += len
                             prevWasConsonant = false
-                            matched = true
+                            matchedVowel = true
                         }
                     }
-                    if (matched) break
+                    if (matchedVowel) break
                 }
             }
-            if (matched) continue
+            if (matchedVowel) continue
 
-            // Fallback: character verbatim
-            sb.append(input[i])
-            prevWasConsonant = false
+            // Check single key mapping fallback (never leave English letter Q-M unmapped)
+            val char = input[i]
+            val mapped = singleKeyBengaliMap[char] ?: singleKeyBengaliMap[char.lowercaseChar()]
+            if (mapped != null) {
+                sb.append(mapped)
+                prevWasConsonant = true
+            } else {
+                sb.append(char)
+                prevWasConsonant = false
+            }
             i++
         }
         return sb.toString()

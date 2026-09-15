@@ -1,6 +1,5 @@
 package com.example.keyboard
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,10 +38,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +73,10 @@ import com.example.data.settings.KeyboardSettings
 import com.example.effects.EffectEngine
 import com.example.effects.EffectOverlay
 import com.example.theme.KeyboardTheme
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun KeyboardComposable(
@@ -94,6 +100,29 @@ fun KeyboardComposable(
 ) {
     var rootCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var activeKeyPreview by remember { mutableStateOf<KeyPopupPreviewData?>(null) }
+
+    // BUG 4: Briefly display language name when switching
+    var languageChangeBanner by remember { mutableStateOf<String?>(null) }
+    var hasInitializedLanguage by remember { mutableStateOf(false) }
+
+    LaunchedEffect(settings.currentLanguageId, settings.currentInputMode) {
+        if (!hasInitializedLanguage) {
+            hasInitializedLanguage = true
+            return@LaunchedEffect
+        }
+        val langName = when {
+            settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.NATIVE -> "বাংলা (Native)"
+            settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.PHONETIC -> "বাংলা (Phonetic)"
+            else -> "English"
+        }
+        languageChangeBanner = langName
+        delay(1500)
+        if (languageChangeBanner == langName) {
+            languageChangeBanner = null
+        }
+    }
+
+    val spaceLabel = KeyboardLayoutProvider.getSpaceLabel(settings.currentLanguageId, settings.currentInputMode)
 
     Box(
         modifier = modifier
@@ -124,9 +153,9 @@ fun KeyboardComposable(
                 when (layoutMode) {
                     LayoutViewMode.ALPHA -> {
                         val rows = if (settings.currentLanguageId == "bn" && settings.currentInputMode == KeyboardInputMode.NATIVE) {
-                            KeyboardLayoutProvider.getBengaliNativeRows(isShifted)
+                            KeyboardLayoutProvider.getBengaliNativeRows(isShifted, spaceLabel)
                         } else {
-                            KeyboardLayoutProvider.getEnglishAlphaRows(isShifted, isCapsLock, settings.showNumberRow)
+                            KeyboardLayoutProvider.getEnglishAlphaRows(isShifted, isCapsLock, settings.showNumberRow, spaceLabel)
                         }
                         KeyboardGrid(
                             rows = rows,
@@ -140,7 +169,7 @@ fun KeyboardComposable(
                     }
                     LayoutViewMode.NUMERIC_SYMBOLS -> {
                         KeyboardGrid(
-                            rows = KeyboardLayoutProvider.getSymbolsPage1Rows(),
+                            rows = KeyboardLayoutProvider.getSymbolsPage1Rows(spaceLabel),
                             settings = settings,
                             theme = theme,
                             rootCoordinates = rootCoordinates,
@@ -151,7 +180,7 @@ fun KeyboardComposable(
                     }
                     LayoutViewMode.MORE_SYMBOLS -> {
                         KeyboardGrid(
-                            rows = KeyboardLayoutProvider.getSymbolsPage2Rows(),
+                            rows = KeyboardLayoutProvider.getSymbolsPage2Rows(spaceLabel),
                             settings = settings,
                             theme = theme,
                             rootCoordinates = rootCoordinates,
@@ -187,6 +216,25 @@ fun KeyboardComposable(
                     engine = effectEngine,
                     modifier = Modifier.fillMaxSize()
                 )
+
+                // BUG 4: Animated language change indicator toast/pill
+                if (languageChangeBanner != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .shadow(elevation = 10.dp, shape = RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(theme.accentColor)
+                            .padding(horizontal = 24.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = languageChangeBanner ?: "",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
             }
         }
 
@@ -354,6 +402,16 @@ private fun KeyView(
     var localCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var isPressed by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    var repeatJob by remember { mutableStateOf<Job?>(null) }
+
+    DisposableEffect(keyDef) {
+        onDispose {
+            repeatJob?.cancel()
+            repeatJob = null
+        }
+    }
+
     val isSpecial = keyDef.type != KeyType.CHARACTER &&
             keyDef.type != KeyType.COMMA &&
             keyDef.type != KeyType.PERIOD &&
@@ -412,7 +470,22 @@ private fun KeyView(
                         // Calculate absolute offset within key
                         val tapCenter = Offset(keyCenter.x - (keySize.width / 2f) + offset.x, keyCenter.y - (keySize.height / 2f) + offset.y)
                         onKeyAction(keyDef, tapCenter, keySize)
+
+                        // BUG 3: Continuous repeated deletion on Backspace long press
+                        if (keyDef.type == KeyType.BACKSPACE) {
+                            repeatJob?.cancel()
+                            repeatJob = coroutineScope.launch {
+                                delay(400) // Initial delay before continuous deletion starts
+                                while (isActive) {
+                                    onKeyAction(keyDef, tapCenter, keySize)
+                                    delay(50) // Continuous deletion every 50ms
+                                }
+                            }
+                        }
+
                         tryAwaitRelease()
+                        repeatJob?.cancel()
+                        repeatJob = null
                         isPressed = false
                         onHideKeyPreview()
                     }

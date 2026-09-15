@@ -1,28 +1,39 @@
 package com.example.audio
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.SoundPool
+import android.util.Log
 import com.example.data.settings.KeyboardSettings
 import com.example.data.settings.SoundPackType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.pow
 
 class SoundEngine(private val context: Context) {
-    private var pcmPlayer: PcmAudioPlayer? = null
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     var settings: KeyboardSettings = KeyboardSettings()
 
-    // 29 distinct notes: 0..25 for English letters A-Z, 26 for SPACE, 27 for ENTER, 28 for BACKSPACE
     private val totalMusicalNotes = 29
-    private val pianoPcms = Array(totalMusicalNotes) { ShortArray(0) }
-    private val violinPcms = Array(totalMusicalNotes) { ShortArray(0) }
+    private var soundPool: SoundPool? = null
 
-    private val mechanicalPcms = mutableListOf<ShortArray>()
-    private var typewriterSlugPcm = ShortArray(0)
-    private var typewriterBellPcm = ShortArray(0)
-    private var softTapPcm = ShortArray(0)
-    private var bubblePcm = ShortArray(0)
+    // Preloaded sound IDs for each sound pack
+    private val pianoSoundIds = IntArray(totalMusicalNotes)
+    private val violinSoundIds = IntArray(totalMusicalNotes)
+    private val mechanicalSoundIds = mutableListOf<Int>()
+    private var typewriterSlugId = 0
+    private var typewriterBellId = 0
+    private var softTapId = 0
+    private var bubbleId = 0
+
+    @Volatile
+    private var isLoaded = false
 
     // Sound packs
     val pianoPack = PianoSoundPack(this)
@@ -34,128 +45,217 @@ class SoundEngine(private val context: Context) {
     val nonePack = NoneSoundPack()
 
     init {
-        pcmPlayer = PcmAudioPlayer(context)
-        // Synthesize all musical & mechanical PCM buffers in background coroutine
-        CoroutineScope(Dispatchers.Default).launch {
-            synthesizePcmBuffers()
+        try {
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            soundPool = SoundPool.Builder()
+                .setMaxStreams(24)
+                .setAudioAttributes(attributes)
+                .build()
+        } catch (e: Exception) {
+            Log.e("SoundEngine", "Failed to initialize SoundPool", e)
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            loadAllSounds()
         }
     }
 
-    private fun synthesizePcmBuffers() {
-        // Musical note frequencies for all 26 English letters (A-Z) spanning G3 (196 Hz) to G#5 (830.6 Hz)
-        // plus 3 dedicated harmonic notes for Space, Enter, Backspace
-        val baseG3 = 196.0f
-        for (i in 0 until 26) {
-            // Equal temperament semitone steps
-            val freq = (baseG3 * 2.0.pow(i / 12.0)).toFloat()
-            pianoPcms[i] = AudioSynthesizer.createPianoPcm(freq)
-            violinPcms[i] = AudioSynthesizer.createViolinPcm(freq)
+    private fun loadAllSounds() {
+        val pool = soundPool ?: return
+        val cacheDir = File(context.cacheDir, "keyboard_sounds").apply { mkdirs() }
+
+        try {
+            // Synthesize and load Piano & Violin notes (A-Z, space, enter, backspace)
+            val baseG3 = 196.0f
+            for (i in 0 until 26) {
+                val freq = (baseG3 * 2.0.pow(i / 12.0)).toFloat()
+                val pianoPcm = AudioSynthesizer.createPianoPcm(freq, durationSec = 0.5f)
+                val violinPcm = AudioSynthesizer.createViolinPcm(freq, durationSec = 0.5f)
+
+                val pianoFile = File(cacheDir, "piano_$i.wav")
+                writePcmToWav(pianoPcm, pianoFile)
+                pianoSoundIds[i] = pool.load(pianoFile.absolutePath, 1)
+
+                val violinFile = File(cacheDir, "violin_$i.wav")
+                writePcmToWav(violinPcm, violinFile)
+                violinSoundIds[i] = pool.load(violinFile.absolutePath, 1)
+            }
+
+            // Note 26: Space (130.81 Hz)
+            val pianoSpace = File(cacheDir, "piano_26.wav")
+            writePcmToWav(AudioSynthesizer.createPianoPcm(130.81f, 0.4f), pianoSpace)
+            pianoSoundIds[26] = pool.load(pianoSpace.absolutePath, 1)
+
+            val violinSpace = File(cacheDir, "violin_26.wav")
+            writePcmToWav(AudioSynthesizer.createViolinPcm(130.81f, 0.4f), violinSpace)
+            violinSoundIds[26] = pool.load(violinSpace.absolutePath, 1)
+
+            // Note 27: Enter (523.25 Hz)
+            val pianoEnter = File(cacheDir, "piano_27.wav")
+            writePcmToWav(AudioSynthesizer.createPianoPcm(523.25f, 0.4f), pianoEnter)
+            pianoSoundIds[27] = pool.load(pianoEnter.absolutePath, 1)
+
+            val violinEnter = File(cacheDir, "violin_27.wav")
+            writePcmToWav(AudioSynthesizer.createViolinPcm(523.25f, 0.4f), violinEnter)
+            violinSoundIds[27] = pool.load(violinEnter.absolutePath, 1)
+
+            // Note 28: Backspace (164.81 Hz)
+            val pianoDel = File(cacheDir, "piano_28.wav")
+            writePcmToWav(AudioSynthesizer.createPianoPcm(164.81f, 0.35f), pianoDel)
+            pianoSoundIds[28] = pool.load(pianoDel.absolutePath, 1)
+
+            val violinDel = File(cacheDir, "violin_28.wav")
+            writePcmToWav(AudioSynthesizer.createViolinPcm(164.81f, 0.35f), violinDel)
+            violinSoundIds[28] = pool.load(violinDel.absolutePath, 1)
+
+            // Mechanical clicks (2 variants)
+            mechanicalSoundIds.clear()
+            for (i in 0..1) {
+                val mechFile = File(cacheDir, "mech_$i.wav")
+                writePcmToWav(AudioSynthesizer.createMechanicalClickPcm(i), mechFile)
+                mechanicalSoundIds.add(pool.load(mechFile.absolutePath, 1))
+            }
+
+            // Typewriter (slug and bell)
+            val typeSlugFile = File(cacheDir, "typewriter_slug.wav")
+            writePcmToWav(AudioSynthesizer.createTypewriterPcm(false), typeSlugFile)
+            typewriterSlugId = pool.load(typeSlugFile.absolutePath, 1)
+
+            val typeBellFile = File(cacheDir, "typewriter_bell.wav")
+            writePcmToWav(AudioSynthesizer.createTypewriterPcm(true), typeBellFile)
+            typewriterBellId = pool.load(typeBellFile.absolutePath, 1)
+
+            // Soft tap
+            val softTapFile = File(cacheDir, "soft_tap.wav")
+            writePcmToWav(AudioSynthesizer.createSoftTapPcm(), softTapFile)
+            softTapId = pool.load(softTapFile.absolutePath, 1)
+
+            // Bubble pop
+            val bubbleFile = File(cacheDir, "bubble_pop.wav")
+            writePcmToWav(AudioSynthesizer.createBubblePopPcm(), bubbleFile)
+            bubbleId = pool.load(bubbleFile.absolutePath, 1)
+
+            isLoaded = true
+        } catch (e: Exception) {
+            Log.e("SoundEngine", "Error preloading sound files into SoundPool", e)
         }
-        // Note 26: SPACE (Deep warm C3 = 130.81 Hz)
-        pianoPcms[26] = AudioSynthesizer.createPianoPcm(130.81f)
-        violinPcms[26] = AudioSynthesizer.createViolinPcm(130.81f)
+    }
 
-        // Note 27: ENTER (Bright triumphant C5 = 523.25 Hz)
-        pianoPcms[27] = AudioSynthesizer.createPianoPcm(523.25f)
-        violinPcms[27] = AudioSynthesizer.createViolinPcm(523.25f)
+    private fun writePcmToWav(pcm: ShortArray, file: File, sampleRate: Int = AudioSynthesizer.SAMPLE_RATE) {
+        val totalAudioLen = (pcm.size * 2).toLong()
+        val totalDataLen = totalAudioLen + 36
+        val channels = 1
+        val byteRate = (16 * sampleRate * channels / 8).toLong()
 
-        // Note 28: BACKSPACE (Warm minor cadence E3 = 164.81 Hz)
-        pianoPcms[28] = AudioSynthesizer.createPianoPcm(164.81f)
-        violinPcms[28] = AudioSynthesizer.createViolinPcm(164.81f)
+        val header = ByteArray(44)
+        header[0] = 'R'.code.toByte()
+        header[1] = 'I'.code.toByte()
+        header[2] = 'F'.code.toByte()
+        header[3] = 'F'.code.toByte()
+        header[4] = (totalDataLen and 0xffL).toByte()
+        header[5] = ((totalDataLen shr 8) and 0xffL).toByte()
+        header[6] = ((totalDataLen shr 16) and 0xffL).toByte()
+        header[7] = ((totalDataLen shr 24) and 0xffL).toByte()
+        header[8] = 'W'.code.toByte()
+        header[9] = 'A'.code.toByte()
+        header[10] = 'V'.code.toByte()
+        header[11] = 'E'.code.toByte()
+        header[12] = 'f'.code.toByte()
+        header[13] = 'm'.code.toByte()
+        header[14] = 't'.code.toByte()
+        header[15] = ' '.code.toByte()
+        header[16] = 16
+        header[17] = 0
+        header[18] = 0
+        header[19] = 0
+        header[20] = 1
+        header[21] = 0
+        header[22] = channels.toByte()
+        header[23] = 0
+        header[24] = (sampleRate and 0xff).toByte()
+        header[25] = ((sampleRate shr 8) and 0xff).toByte()
+        header[26] = ((sampleRate shr 16) and 0xff).toByte()
+        header[27] = ((sampleRate shr 24) and 0xff).toByte()
+        header[28] = (byteRate and 0xffL).toByte()
+        header[29] = ((byteRate shr 8) and 0xffL).toByte()
+        header[30] = ((byteRate shr 16) and 0xffL).toByte()
+        header[31] = ((byteRate shr 24) and 0xffL).toByte()
+        header[32] = (channels * 2).toByte()
+        header[33] = 0
+        header[34] = 16
+        header[35] = 0
+        header[36] = 'd'.code.toByte()
+        header[37] = 'a'.code.toByte()
+        header[38] = 't'.code.toByte()
+        header[39] = 'a'.code.toByte()
+        header[40] = (totalAudioLen and 0xffL).toByte()
+        header[41] = ((totalAudioLen shr 8) and 0xffL).toByte()
+        header[42] = ((totalAudioLen shr 16) and 0xffL).toByte()
+        header[43] = ((totalAudioLen shr 24) and 0xffL).toByte()
 
-        // Mechanical keyboard clicks
-        mechanicalPcms.clear()
-        for (i in 0..1) {
-            mechanicalPcms.add(AudioSynthesizer.createMechanicalClickPcm(i))
+        FileOutputStream(file).use { out ->
+            out.write(header)
+            val byteBuf = ByteBuffer.allocate(pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+            for (s in pcm) {
+                byteBuf.putShort(s)
+            }
+            out.write(byteBuf.array())
         }
+    }
 
-        // Typewriter clicks & Bell
-        typewriterSlugPcm = AudioSynthesizer.createTypewriterPcm(false)
-        typewriterBellPcm = AudioSynthesizer.createTypewriterPcm(true)
-
-        // Soft Tap
-        softTapPcm = AudioSynthesizer.createSoftTapPcm()
-
-        // Bubble pop
-        bubblePcm = AudioSynthesizer.createBubblePopPcm()
+    private fun playSoundId(soundId: Int, volume: Float) {
+        val vol = volume.coerceIn(0f, 1f)
+        if (vol <= 0.01f || !settings.soundEnabled) return
+        val pool = soundPool
+        if (pool != null && soundId > 0) {
+            pool.play(soundId, vol, vol, 1, 0, 1.0f)
+        } else {
+            playSystemClick(vol)
+        }
     }
 
     fun playPianoNote(noteIndex: Int) {
-        if (!settings.soundEnabled) {
-            pcmPlayer?.stopSustain()
-            return
-        }
+        if (!settings.soundEnabled) return
         val safeIndex = noteIndex.coerceIn(0, totalMusicalNotes - 1)
-        val pcm = pianoPcms.getOrNull(safeIndex)
-        if (pcm != null && pcm.isNotEmpty()) {
-            pcmPlayer?.playSustained(pcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(settings.soundVolume)
-        }
+        val id = pianoSoundIds.getOrNull(safeIndex) ?: 0
+        playSoundId(id, settings.soundVolume)
     }
 
     fun playViolinNote(noteIndex: Int) {
-        if (!settings.soundEnabled) {
-            pcmPlayer?.stopSustain()
-            return
-        }
+        if (!settings.soundEnabled) return
         val safeIndex = noteIndex.coerceIn(0, totalMusicalNotes - 1)
-        val pcm = violinPcms.getOrNull(safeIndex)
-        if (pcm != null && pcm.isNotEmpty()) {
-            pcmPlayer?.playSustained(pcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(settings.soundVolume)
-        }
+        val id = violinSoundIds.getOrNull(safeIndex) ?: 0
+        playSoundId(id, settings.soundVolume)
     }
 
     fun playMechanicalClick() {
-        pcmPlayer?.stopSustain()
         if (!settings.soundEnabled) return
-        val pcm = mechanicalPcms.randomOrNull()
-        if (pcm != null && pcm.isNotEmpty()) {
-            pcmPlayer?.playPcm(pcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(settings.soundVolume)
-        }
+        val id = mechanicalSoundIds.randomOrNull() ?: 0
+        playSoundId(id, settings.soundVolume)
     }
 
     fun playTypewriter(isEnter: Boolean) {
-        pcmPlayer?.stopSustain()
         if (!settings.soundEnabled) return
-        val pcm = if (isEnter) typewriterBellPcm else typewriterSlugPcm
-        if (pcm.isNotEmpty()) {
-            pcmPlayer?.playPcm(pcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(
-                settings.soundVolume,
-                if (isEnter) AudioManager.FX_KEYPRESS_RETURN else AudioManager.FX_KEYPRESS_STANDARD
-            )
-        }
+        val id = if (isEnter) typewriterBellId else typewriterSlugId
+        playSoundId(id, settings.soundVolume)
     }
 
     fun playSoftTap() {
-        pcmPlayer?.stopSustain()
         if (!settings.soundEnabled) return
-        if (softTapPcm.isNotEmpty()) {
-            pcmPlayer?.playPcm(softTapPcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(settings.soundVolume)
-        }
+        playSoundId(softTapId, settings.soundVolume)
     }
 
     fun playBubble() {
-        pcmPlayer?.stopSustain()
         if (!settings.soundEnabled) return
-        if (bubblePcm.isNotEmpty()) {
-            pcmPlayer?.playPcm(bubblePcm, settings.soundVolume)
-        } else {
-            pcmPlayer?.playSystemClick(settings.soundVolume)
-        }
+        playSoundId(bubbleId, settings.soundVolume)
     }
 
     fun playForKey(key: String) {
         if (!settings.soundEnabled || settings.soundPack == SoundPackType.NONE) {
-            pcmPlayer?.stopSustain()
             return
         }
         val pack: KeySoundPack = when (settings.soundPack) {
@@ -171,12 +271,20 @@ class SoundEngine(private val context: Context) {
     }
 
     fun stopSustain() {
-        pcmPlayer?.stopSustain()
+        // SoundPool streams naturally manage decay without blocking
+    }
+
+    fun playSystemClick(volume: Float, fx: Int = AudioManager.FX_KEYPRESS_STANDARD) {
+        try {
+            audioManager?.playSoundEffect(fx, volume.coerceIn(0f, 1f))
+        } catch (_: Exception) {}
     }
 
     fun release() {
-        pcmPlayer?.release()
-        pcmPlayer = null
+        try {
+            soundPool?.release()
+            soundPool = null
+        } catch (_: Exception) {}
     }
 
     companion object {
@@ -198,7 +306,7 @@ class SoundEngine(private val context: Context) {
             val trimmed = key.trim()
             if (trimmed.equals("SPACE", ignoreCase = true) || key == " ") return 26
             if (trimmed.equals("ENTER", ignoreCase = true) || key == "\n") return 27
-            if (trimmed.equals("BACKSPACE", ignoreCase = true) || trimmed.equals("DEL", ignoreCase = true)) return 28
+            if (trimmed.equals("BACKSPACE", ignoreCase = true) || trimmed.equals("DEL", ignoreCase = true) || key == "⌫") return 28
 
             val firstChar = trimmed.first()
             val upper = firstChar.uppercaseChar()

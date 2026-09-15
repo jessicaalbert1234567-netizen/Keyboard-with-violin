@@ -146,6 +146,23 @@ fun PreferencesScreen(
                     )
                 }
 
+                // Auto Correction
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto Spell Correction", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Automatically fix common typos on space", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = settings.autoCorrectionEnabled,
+                        onCheckedChange = { onUpdateSettings(settings.copy(autoCorrectionEnabled = it)) },
+                        modifier = Modifier.testTag("switch_autocorrect")
+                    )
+                }
+
                 // Clipboard History
                 Row(
                     modifier = Modifier.fillMaxWidth(),

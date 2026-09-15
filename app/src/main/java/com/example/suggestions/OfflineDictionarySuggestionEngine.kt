@@ -57,7 +57,8 @@ class OfflineDictionarySuggestionEngine(context: Context) : SuggestionEngine {
         currentWord: String,
         previousWord: String?,
         languageCode: String,
-        limit: Int
+        limit: Int,
+        personalDictionaryEnabled: Boolean
     ): List<String> = withContext(Dispatchers.IO) {
         val result = LinkedHashSet<String>()
         val cleanCurrent = currentWord.trim().lowercase()
@@ -82,13 +83,23 @@ class OfflineDictionarySuggestionEngine(context: Context) : SuggestionEngine {
             }
         }
 
-        // 2. Learned words from local Room database
-        try {
-            val userWords = userWordDao.getWordsStartingWith(cleanCurrent, languageCode, limit)
-            result.addAll(userWords)
-        } catch (_: Exception) {}
+        // 2. Spell correction check for English (offline) - language aware, never alters Bengali
+        if (languageCode == "en") {
+            val correction = EnglishSpellCorrector.getCorrection(currentWord)
+            if (correction != null) {
+                result.add(correction)
+            }
+        }
 
-        // 3. Static dictionary completions
+        // 3. Learned words from local Room database (only if personal dictionary enabled)
+        if (personalDictionaryEnabled) {
+            try {
+                val userWords = userWordDao.getWordsStartingWith(cleanCurrent, languageCode, limit)
+                result.addAll(userWords)
+            } catch (_: Exception) {}
+        }
+
+        // 4. Static dictionary completions
         val dict = if (languageCode == "bn") bengaliWords else englishWords
         for (w in dict) {
             if (w.lowercase().startsWith(cleanCurrent) && !result.contains(w)) {
@@ -102,12 +113,18 @@ class OfflineDictionarySuggestionEngine(context: Context) : SuggestionEngine {
             }
         }
 
-        // 4. Exact word fallback if no match found
+        // 5. Exact word fallback if no match found
         if (result.isEmpty()) {
             result.add(currentWord)
         }
 
         result.take(limit)
+    }
+
+    override fun getAutoCorrection(word: String, languageCode: String): String? {
+        // STRICT LANGUAGE ISOLATION: Never apply English corrections when Bengali is active
+        if (languageCode != "en") return null
+        return EnglishSpellCorrector.getCorrection(word)
     }
 
     override suspend fun learnWord(word: String, languageCode: String) = withContext(Dispatchers.IO) {
